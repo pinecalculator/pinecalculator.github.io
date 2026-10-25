@@ -715,6 +715,17 @@
       .score-pill[data-band="moderate"] { background: var(--score-moderate); color: #10213a; }
       .score-pill[data-band="low"] { background: var(--score-low); color: #ffffff; }
 
+      .score-pills { display: flex; gap: 8px; align-items: flex-start; flex-shrink: 0; }
+      .sd-pill {
+        display: inline-flex; flex-direction: column; align-items: center;
+        min-width: 64px; padding: 6px 12px; border-radius: 14px; line-height: 1.2;
+        white-space: nowrap; background: rgba(79, 70, 229, 0.08);
+        border: 1px solid rgba(79, 70, 229, 0.18); color: var(--navy);
+      }
+      .sd-pill strong { font-size: 0.95rem; }
+      .sd-pill small { font-size: 0.66rem; font-weight: 700; opacity: 0.8; }
+      .chart-app-row .sd-pill { min-width: 56px; padding: 4px 10px; }
+
       .shared-card {
         padding: 14px;
         border: 1px solid var(--border);
@@ -1522,6 +1533,18 @@
         return null;
       }
 
+      function stdDev(values) {
+        const n = values.length;
+        if (n < 2) return null;
+        const m = values.reduce((s, v) => s + v, 0) / n;
+        return Math.round(Math.sqrt(values.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1)) * 10) / 10;
+      }
+
+      function sdPill(sd, tip) {
+        const has = Number.isFinite(sd);
+        return `<div class="sd-pill" title="${escapeHtml(has ? tip : 'Needs at least 2 values')}"><strong>SD ${has ? formatScore(sd) : '–'}</strong><small>spread</small></div>`;
+      }
+
       // One entry per app: every evaluator's score, the latest record, and the average.
       function groupSharedByApp() {
         const groups = new Map();
@@ -1542,7 +1565,8 @@
               appName: evaluations[0].appName,
               evaluations,
               latest: evaluations[0],
-              average: Math.round(average * 10) / 10
+              average: Math.round(average * 10) / 10,
+              sd: stdDev(evaluations.map((e) => e.score))
             };
           })
           .sort((a, b) => (b.latest.timestamp || 0) - (a.latest.timestamp || 0));
@@ -1757,9 +1781,12 @@
                 <div class="shared-card-title"><span class="app-emoji" aria-hidden="true">${getAppEmoji(g.appName)}</span>${escapeHtml(g.appName)}</div>
                 <div class="shared-card-sub">${n} evaluation${n === 1 ? '' : 's'} · latest by <strong>${escapeHtml(g.latest.userName || 'Unknown')}</strong>${latestDate ? ' · ' + latestDate : ''}</div>
               </div>
-              <div class="score-pill" data-band="${band}" title="${n > 1 ? 'Average of ' + n + ' evaluations' : 'Single evaluation'}">
-                <strong>${n > 1 ? 'Avg ' : ''}${formatScore(g.average)}</strong>
-                <small>${SCORE_LABELS[band]}</small>
+              <div class="score-pills">
+                <div class="score-pill" data-band="${band}" title="${n > 1 ? 'Average of ' + n + ' evaluations' : 'Single evaluation'}">
+                  <strong>${n > 1 ? 'Avg ' : ''}${formatScore(g.average)}</strong>
+                  <small>${SCORE_LABELS[band]}</small>
+                </div>
+                ${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}
               </div>
             </div>
             <div class="shared-bar" aria-hidden="true"><span style="width:${clampPct(g.average)}%"></span></div>
@@ -1779,7 +1806,7 @@
           <button type="button" class="chart-app-row" data-app-key="${escapeHtml(g.key)}" data-count="${n}" data-single-user="${n === 1 ? escapeHtml(g.latest.userName || '') : ''}">
             <div class="chart-app-name"><span class="app-emoji" aria-hidden="true">${getAppEmoji(g.appName)}</span>${escapeHtml(g.appName)}<small>${n} evaluation${n === 1 ? '' : 's'}</small></div>
             ${renderDotPlot(g)}
-            <div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>
+            <div class="score-pills"><div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}</div>
           </button>`;
       }
 
@@ -1890,7 +1917,7 @@
             <div class="modal-body" style="max-height: 420px; overflow-y: auto; padding-top: 0;">
               <div class="compare-summary">
                 <span>Average across ${n} evaluation${n === 1 ? '' : 's'}</span>
-                <span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>
+                <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}</span>
               </div>
               <div style="padding: 14px 0 6px;">
                 <div class="shared-dotplot-label">Spread of scores (bar = mean)</div>
