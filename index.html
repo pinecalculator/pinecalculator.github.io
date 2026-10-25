@@ -1,0 +1,3059 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PINE Calculator - Privacy Index for Non-HIPAA Entities</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --panel-alt: #eef6ff;
+        --ink: #10213a;
+        --muted: #53657d;
+        --border: #dfeaf8;
+        --shadow: 0 18px 45px rgba(16, 33, 58, 0.12);
+        --navy: #10213a;
+        --indigo: #4f46e5;
+        --sky: #38bdf8;
+        --mint: #14b8a6;
+        --lime: #84cc16;
+        --amber: #f59e0b;
+        --orange: #f97316;
+        --red: #ef4444;
+        --rose: #fb7185;
+        --score-high: #27ae60;
+        --score-moderate: #f39c12;
+        --score-low: #e74c3c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      /* Always reserve scrollbar space so centered content doesn't jump sideways
+         when the page grows tall enough to scroll (e.g. after shared evaluations load). */
+      html {
+        scrollbar-gutter: stable;
+      }
+
+      @supports not (scrollbar-gutter: stable) {
+        html {
+          overflow-y: scroll;
+        }
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(135deg, #eef6ff 0%, #f4f7fb 35%, #ecfeff 100%);
+        color: var(--ink);
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 24px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .brand-mark {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--mint), var(--indigo), var(--sky));
+        position: relative;
+        box-shadow: inset 0 2px 12px rgba(255,255,255,0.4), 0 10px 22px rgba(79, 70, 229, 0.25);
+      }
+
+      .brand-mark::before {
+        content: "";
+        position: absolute;
+        inset: 11px;
+        border-radius: 9px;
+        background: rgba(255,255,255,0.28);
+        border: 2px solid rgba(255,255,255,0.48);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 2.3vw, 2.8rem);
+      }
+
+      .badge {
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: rgba(20, 184, 166, 0.12);
+        border: 1px solid rgba(20, 184, 166, 0.18);
+        color: var(--navy);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-size: 0.74rem;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1.35fr 0.95fr;
+        gap: 24px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .form-panel {
+        padding: 24px;
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .feature-card {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 12px;
+        height: 100%;
+      }
+
+      .feature-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 12px;
+      }
+
+      .feature-header label {
+        display: block;
+        font-weight: 800;
+        color: var(--navy);
+        margin-bottom: 4px;
+      }
+
+      .feature-header small {
+        display: block;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .feature-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: rgba(148, 163, 184, 0.08);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
+        padding: 8px 10px;
+      }
+
+      .feature-meta label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--navy);
+        margin: 0;
+      }
+
+      .feature-meta select {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: white;
+        color: var(--navy);
+        padding: 8px 10px;
+        font-weight: 700;
+      }
+
+      .feature-score {
+        min-width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: rgba(79, 70, 229, 0.08);
+        border: 1px solid rgba(79, 70, 229, 0.12);
+        color: var(--navy);
+        font-weight: 900;
+      }
+
+      .feature-score[data-level="low"] {
+        background: rgba(239, 68, 68, 0.18);
+        border-color: rgba(239, 68, 68, 0.38);
+        color: #ffffff;
+      }
+
+      .feature-score[data-level="moderate"] {
+        background: rgba(245, 158, 11, 0.20);
+        border-color: rgba(245, 158, 11, 0.45);
+        color: var(--navy);
+      }
+
+      .feature-score[data-level="high"] {
+        background: rgba(20, 184, 166, 0.18);
+        border-color: rgba(20, 184, 166, 0.45);
+        color: var(--navy);
+      }
+
+      .feature-button {
+        width: 100%;
+        align-self: stretch;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--mint), var(--sky));
+        color: white;
+        font-weight: 800;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 10px 18px rgba(56, 189, 248, 0.18);
+        margin-top: auto;
+      }
+
+      .feature-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .feature-button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .summary-panel {
+        padding: 24px;
+        background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
+      }
+
+      .score-wrap {
+        background: linear-gradient(135deg, rgba(20,184,166,0.13), rgba(79,70,229,0.08));
+        border: 1px solid rgba(79,70,229,0.12);
+        border-radius: 22px;
+        padding: 20px;
+      }
+
+      .result-row {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .score { 
+        font-size: clamp(2.7rem, 5vw, 4.4rem);
+        line-height: 1;
+        font-weight: 900;
+        letter-spacing: -0.06em;
+        color: var(--navy);
+      }
+
+      .score-tag {
+        padding: 9px 12px;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 0.74rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .meter {
+        position: relative;
+        width: 100%;
+        height: 18px;
+        background: linear-gradient(90deg, rgba(239,68,68,0.18), rgba(245,158,11,0.2), rgba(20,184,166,0.18), rgba(79,70,229,0.18));
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid rgba(16, 33, 58, 0.08);
+      }
+
+      .meter-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--red), var(--amber), var(--mint), var(--indigo));
+        transition: width 0.45s ease;
+      }
+
+      .legend {
+        margin-top: 18px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .risk-box {
+        margin-top: 24px;
+        padding: 18px;
+        border-radius: 18px;
+        background: #f8fafc;
+        border: 1px solid var(--border);
+      }
+
+      .risk-box h3 {
+        margin: 0 0 8px 0;
+        font-size: 0.96rem;
+      }
+
+      .risk-box p {
+        margin: 0;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+
+      .stats {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .stat {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px 12px;
+      }
+
+      .stat small {
+        display: block;
+        color: var(--muted);
+        margin-bottom: 5px;
+      }
+
+      .stat strong {
+        font-size: 1.1rem;
+      }
+
+      .footer-note {
+        margin-top: 18px;
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(16, 33, 58, 0.52);
+        backdrop-filter: blur(8px);
+        z-index: 1000;
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal {
+        width: min(620px, 100%);
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 24px 48px rgba(16, 33, 58, 0.25);
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+
+      .modal-header {
+        padding: 20px 22px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .close-button {
+        border: none;
+        background: rgba(16, 33, 58, 0.06);
+        border-radius: 10px;
+        width: 36px;
+        height: 36px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        color: var(--navy);
+      }
+
+      .modal-body {
+        padding: 22px;
+      }
+
+      .rubric-list {
+        margin: 0 0 20px 0;
+        padding-left: 18px;
+        color: var(--muted);
+        display: grid;
+        gap: 10px;
+      }
+
+      .rubric-list li {
+        line-height: 1.5;
+      }
+
+      .rubric-list strong {
+        color: var(--navy);
+      }
+
+      .score-picker {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 8px;
+      }
+
+      .score-picker input[type="range"] {
+        flex: 1;
+        appearance: none;
+        height: 10px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--red), var(--amber), var(--mint), var(--indigo));
+        outline: none;
+      }
+
+      .score-picker input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid var(--navy);
+        cursor: pointer;
+      }
+
+      .score-badge {
+        min-width: 54px;
+        text-align: center;
+        font-weight: 900;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      .score-badge[data-level="low"] {
+        background: rgba(239, 68, 68, 0.18);
+        color: #ffffff;
+        border-color: rgba(239, 68, 68, 0.4);
+      }
+
+      .score-badge[data-level="moderate"] {
+        background: rgba(245, 158, 11, 0.20);
+        color: #10213a;
+        border-color: rgba(245, 158, 11, 0.45);
+      }
+
+      .score-badge[data-level="high"] {
+        background: rgba(20, 184, 166, 0.18);
+        color: #10213a;
+        border-color: rgba(20, 184, 166, 0.45);
+      }
+
+      .modal-actions {
+        margin-top: 20px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .header-actions > * {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .secondary-btn, .primary-btn {
+        border: none;
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .start-screen {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+        background: linear-gradient(135deg, #eef6ff 0%, #f4f7fb 35%, #ecfeff 100%);
+      }
+
+      .start-card {
+        width: min(700px, 100%);
+        padding: 30px;
+      }
+
+      .start-header {
+        margin-bottom: 28px;
+      }
+
+      .start-form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-bottom: 28px;
+      }
+
+      .start-form label {
+        font-weight: 800;
+        color: var(--navy);
+      }
+
+      .start-form input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 1rem;
+        color: var(--ink);
+        background: #fff;
+      }
+
+      .large-btn {
+        width: 100%;
+        border: none;
+        border-radius: 14px;
+        padding: 14px 18px;
+        font-weight: 800;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+
+      .history-panel {
+        border-top: 1px solid var(--border);
+        padding-top: 18px;
+      }
+
+      .history-panel h3 {
+        margin: 0 0 12px 0;
+        color: var(--navy);
+      }
+
+      .history-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+      }
+
+      .history-item {
+        margin: 0;
+      }
+
+      .history-button {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        cursor: pointer;
+        color: var(--navy);
+        font-weight: 700;
+      }
+
+      .history-button small {
+        color: var(--muted);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .empty-state {
+        color: var(--muted);
+        padding: 12px 8px;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        background: rgba(148, 163, 184, 0.06);
+      }
+
+      .portfolio-card {
+        margin-top: 24px;
+        border-top: 1px solid var(--border);
+        padding-top: 28px;
+      }
+
+      .portfolio-card h3 {
+        margin: 0 0 12px 0;
+        color: var(--navy);
+      }
+
+      .portfolio-chart {
+        display: grid;
+        gap: 12px;
+      }
+
+      .chart-row {
+        display: grid;
+        grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 2.2fr) auto;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .chart-name {
+        font-size: 0.82rem;
+        color: var(--navy);
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .chart-track {
+        position: relative;
+        height: 12px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(148, 163, 184, 0.18), rgba(148, 163, 184, 0.09));
+        overflow: hidden;
+      }
+
+      .chart-bar {
+        position: absolute;
+        inset: 0 auto 0 0;
+        border-radius: inherit;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+      }
+
+      .chart-score {
+        min-width: 2.5rem;
+        text-align: right;
+        font-weight: 800;
+        font-size: 0.8rem;
+      }
+
+      .shared-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin: 0 0 4px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      .shared-legend span::before {
+        content: "";
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 6px;
+        border-radius: 50%;
+        vertical-align: -1px;
+        background: var(--dot);
+      }
+
+      #sharedEvaluationsList {
+        max-height: 480px;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+
+      .score-pill {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 64px;
+        padding: 6px 12px;
+        border-radius: 14px;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .score-pill strong { font-size: 0.95rem; }
+      .score-pill small { font-size: 0.66rem; font-weight: 700; opacity: 0.9; }
+      .score-pill[data-band="high"] { background: var(--score-high); color: #ffffff; }
+      .score-pill[data-band="moderate"] { background: var(--score-moderate); color: #10213a; }
+      .score-pill[data-band="low"] { background: var(--score-low); color: #ffffff; }
+
+      .shared-card {
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-left: 5px solid var(--band, #cbd5e1);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        cursor: pointer;
+        transition: box-shadow 0.2s ease;
+      }
+
+      .shared-card:hover { box-shadow: 0 8px 20px rgba(16, 33, 58, 0.09); }
+      .shared-card[data-band="high"] { --band: var(--score-high); }
+      .shared-card[data-band="moderate"] { --band: var(--score-moderate); }
+      .shared-card[data-band="low"] { --band: var(--score-low); }
+
+      .shared-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .shared-card-title { font-size: 15px; font-weight: 800; color: var(--navy); }
+      .shared-card-sub { margin-top: 4px; font-size: 11px; color: var(--muted); }
+
+      .shared-bar {
+        height: 6px;
+        margin-top: 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.2);
+        overflow: hidden;
+      }
+
+      .shared-bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--band);
+      }
+
+      .shared-evaluators {
+        margin-top: 10px;
+        padding: 8px;
+        border-radius: 8px;
+        background: #f1f5f9;
+      }
+
+      .shared-evaluators-label { margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+
+      .shared-evaluator-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0 4px 4px 0;
+        padding: 3px 6px 3px 10px;
+        border: none;
+        border-radius: 12px;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .shared-evaluator-badge span {
+        padding: 1px 6px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .shared-evaluator-badge[data-band="high"] { background: var(--score-high); color: #ffffff; }
+      .shared-evaluator-badge[data-band="moderate"] { background: var(--score-moderate); color: #10213a; }
+      .shared-evaluator-badge[data-band="low"] { background: var(--score-low); color: #ffffff; }
+
+      .shared-more { font-size: 11px; color: var(--muted); }
+
+      .shared-view-all-link {
+        margin-top: 8px;
+        padding: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0066cc;
+        cursor: pointer;
+      }
+
+      .compare-summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 2px solid var(--border);
+        font-weight: 800;
+        color: var(--navy);
+      }
+
+      .compare-row {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 4px;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        background: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .compare-row:hover { background: #f5f8fc; }
+
+
+      /* ---- Emoji categories, view toggle, dot-plot charts ---- */
+      .view-toggle {
+        display: inline-flex;
+        gap: 4px;
+        margin: 12px 0 4px;
+        padding: 4px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+      }
+
+      .view-toggle button {
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 800;
+        padding: 7px 14px;
+        cursor: pointer;
+      }
+
+      .view-toggle button.active {
+        background: #ffffff;
+        color: var(--navy);
+        box-shadow: 0 2px 8px rgba(16, 33, 58, 0.12);
+      }
+
+      .app-emoji {
+        display: inline-block;
+        margin-right: 6px;
+        font-size: 1.15em;
+        line-height: 1;
+        vertical-align: -1px;
+      }
+
+      .cat-section { margin-bottom: 18px; }
+
+      .cat-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 6px 0 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+      }
+
+      .cat-head > div:nth-child(2) { flex: 1; min-width: 0; }
+      .cat-emoji { font-size: 1.7rem; line-height: 1; }
+      .cat-title { font-weight: 800; color: var(--navy); font-size: 0.98rem; }
+      .cat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+      .cat-summary-chart { display: grid; gap: 10px; margin: 12px 0 20px; }
+      .cat-summary-chart .chart-row { grid-template-columns: minmax(120px, 1.2fr) minmax(110px, 2.2fr) auto; }
+
+      .chart-key {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin: 4px 0 12px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--muted);
+        align-items: center;
+      }
+
+      .chart-key .key-dot,
+      .chart-key .key-mean { display: inline-block; vertical-align: -2px; margin-right: 6px; }
+      .chart-key .key-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--indigo); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(16,33,58,0.3); }
+      .chart-key .key-mean { width: 3px; height: 14px; border-radius: 2px; background: var(--navy); }
+
+      .chart-app-row {
+        display: grid;
+        grid-template-columns: minmax(100px, 1fr) minmax(120px, 2.4fr) auto;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 8px 10px 20px;
+        margin-bottom: 4px;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        background: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .chart-app-row:hover { background: #f5f8fc; border-color: var(--border); }
+      .chart-app-name { font-weight: 800; font-size: 0.86rem; color: var(--navy); overflow: hidden; text-overflow: ellipsis; }
+      .chart-app-name small { display: block; font-weight: 600; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+      .chart-app-row .score-pill { min-width: 56px; padding: 4px 10px; }
+
+      .dotplot { position: relative; padding: 0 7px; }
+
+      .dotplot-track {
+        position: relative;
+        height: 22px;
+        border-radius: 999px;
+        background: linear-gradient(90deg,
+          rgba(231, 76, 60, 0.16) 0%, rgba(231, 76, 60, 0.16) 50%,
+          rgba(243, 156, 18, 0.18) 50%, rgba(243, 156, 18, 0.18) 80%,
+          rgba(39, 174, 96, 0.18) 80%, rgba(39, 174, 96, 0.18) 100%);
+      }
+
+      .dotplot .dot {
+        position: absolute;
+        top: 50%;
+        width: 14px;
+        height: 14px;
+        margin: -7px 0 0 -7px;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        box-shadow: 0 1px 4px rgba(16, 33, 58, 0.35);
+        opacity: 0.92;
+      }
+
+      .dotplot .dot[data-band="high"] { background: var(--score-high); }
+      .dotplot .dot[data-band="moderate"] { background: var(--score-moderate); }
+      .dotplot .dot[data-band="low"] { background: var(--score-low); }
+
+      .dotplot .dot-mean {
+        position: absolute;
+        top: -3px;
+        bottom: -3px;
+        width: 3px;
+        margin-left: -1.5px;
+        border-radius: 2px;
+        background: var(--navy);
+      }
+
+      .dotplot-axis { position: relative; height: 14px; margin-top: 3px; font-size: 9px; font-weight: 700; color: var(--muted); }
+      .dotplot-axis span { position: absolute; transform: translateX(-50%); }
+
+      .shared-dotplot { margin-top: 10px; }
+      .shared-dotplot-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+
+      @media (max-width: 560px) {
+        .chart-app-row { grid-template-columns: 1fr auto; }
+        .chart-app-row .dotplot { grid-column: 1 / -1; order: 3; }
+      }
+
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .feature-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ---- Start-screen tabs + export panel ---- */
+      .start-tabs {
+        display: flex;
+        gap: 4px;
+        margin: 0 0 24px;
+        padding: 4px;
+        border-radius: 14px;
+        background: rgba(148, 163, 184, 0.14);
+      }
+      .start-tabs button {
+        flex: 1;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 800;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+      .start-tabs button.active {
+        background: #ffffff;
+        color: var(--navy);
+        box-shadow: 0 2px 8px rgba(16, 33, 58, 0.12);
+      }
+      .tab-panel[hidden] { display: none; }
+      .export-panel h3 { margin: 0 0 8px; color: var(--navy); }
+      .export-panel p { margin: 0 0 16px; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+      .export-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+      .export-stat { padding: 12px; border-radius: 14px; background: var(--panel-alt); border: 1px solid var(--border); text-align: center; }
+      .export-stat strong { display: block; font-size: 1.4rem; color: var(--navy); }
+      .export-stat small { color: var(--muted); font-weight: 700; }
+      .export-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+      .export-option { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer; background: #fff; }
+      .export-option input { margin-top: 3px; }
+      .export-option strong { display: block; color: var(--navy); font-size: 0.9rem; }
+      .export-option span { color: var(--muted); font-size: 0.8rem; }
+      .export-actions { display: flex; gap: 10px; }
+      .export-actions .primary-btn { flex: 1; }
+      .export-status { min-height: 1.2em; margin: 12px 0 0; font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+      .export-status.error { color: var(--score-low); }
+      .export-status.ok { color: var(--score-high); }
+      .export-howto { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+    </style>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🌲</text></svg>">
+  </head>
+  <body>
+    <div id="appStartScreen" class="start-screen">
+      <div class="panel start-card">
+        <div class="start-header">
+          <div class="brand">
+            <img src="PINE-logo.png" alt="PINE Logo" style="width: 44px; height: 44px; border-radius: 14px; object-fit: contain;" />
+            <div>
+              <h1>PINE Calculator</h1>
+              <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: var(--muted);">Privacy Index for Non-HIPAA Entities</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="start-tabs" role="tablist" aria-label="Start screen sections">
+          <button type="button" role="tab" id="tabBtnEvaluate" data-tab="evaluate" class="active" aria-selected="true" aria-controls="tabPanelEvaluate">Evaluate</button>
+          <button type="button" role="tab" id="tabBtnExport" data-tab="export" aria-selected="false" aria-controls="tabPanelExport">Export data</button>
+        </div>
+
+        <div id="tabPanelEvaluate" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnEvaluate">
+        <div class="start-form">
+          <label for="userNameInput">Your name</label>
+          <input id="userNameInput" type="text" placeholder="e.g. John Smith" />
+          <label for="appNameInput">App name to evaluate</label>
+          <input id="appNameInput" type="text" placeholder="e.g. CarePulse App" />
+          <button id="startEvaluationBtn" type="button" class="primary-btn large-btn">Start evaluation</button>
+        </div>
+
+        <div class="portfolio-card">
+          <h3>Shared Evaluations</h3>
+          <div class="shared-legend" aria-label="Score color key">
+            <span style="--dot: var(--score-high);">Green: 80+</span>
+            <span style="--dot: var(--score-moderate);">Orange: 50-79</span>
+            <span style="--dot: var(--score-low);">Red: below 50</span>
+          </div>
+          <div class="view-toggle" id="sharedViewToggle" role="group" aria-label="Shared evaluations view">
+            <button type="button" data-view="cards" class="active" aria-pressed="true">🗂️ All apps</button>
+            <button type="button" data-view="category" aria-pressed="false">🧩 By category</button>
+            <button type="button" data-view="chart" aria-pressed="false">📊 Chart</button>
+          </div>
+          <div id="sharedEvaluationsContainer" style="margin-top: 15px;">
+            <div id="sharedEvaluationsList" class="history-list" role="list"><div class="empty-state">Loading shared evaluations…</div></div>
+            <button id="refreshSharedBtn" type="button" class="secondary-btn" style="margin-top: 10px; width: 100%;">Refresh shared evaluations</button>
+          </div>
+        </div>
+
+        <div class="history-panel">
+          <h3>Your recent evaluations</h3>
+          <ul id="evaluationHistoryList" class="history-list"></ul>
+        </div>
+        </div>
+
+        <div id="tabPanelExport" class="tab-panel export-panel" role="tabpanel" aria-labelledby="tabBtnExport" hidden>
+          <h3>Export all evaluations</h3>
+          <p>Downloads every evaluation currently stored in the Firebase Realtime Database as a JSON file you can import straight back into Firebase.</p>
+
+          <div class="export-stats">
+            <div class="export-stat"><strong id="exportCountEvals">–</strong><small>Evaluations</small></div>
+            <div class="export-stat"><strong id="exportCountApps">–</strong><small>Apps</small></div>
+            <div class="export-stat"><strong id="exportCountUsers">–</strong><small>Evaluators</small></div>
+          </div>
+
+          <div class="export-options" role="radiogroup" aria-label="Export format">
+            <label class="export-option">
+              <input type="radio" name="exportFormat" value="root" checked />
+              <div><strong>Database root import</strong><span>Wrapped as { "evaluations": { … } }. Import at the database root.</span></div>
+            </label>
+            <label class="export-option">
+              <input type="radio" name="exportFormat" value="node" />
+              <div><strong>Node import</strong><span>Records only, exactly as stored. Import at the <code>evaluations</code> node.</span></div>
+            </label>
+          </div>
+
+          <div class="export-actions">
+            <button type="button" class="secondary-btn" id="refreshExportBtn">Refresh count</button>
+            <button type="button" class="primary-btn" id="downloadExportBtn">Download JSON</button>
+          </div>
+          <div class="export-status" id="exportStatus" role="status" aria-live="polite"></div>
+
+          <div class="export-howto">
+            <strong>To import:</strong> Firebase console → Realtime Database → Data → ⋮ menu on the target location → Import JSON. Importing overwrites data at that location, so back up first if other data lives there.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="evaluationScreen" class="container" style="display: none;">
+      <div class="header">
+        <div class="brand">
+          <img src="PINE-logo.png" alt="PINE Logo" style="width: 44px; height: 44px; border-radius: 14px; object-fit: contain;" />
+          <div>
+            <h1 id="currentAppNameTitle">PINE Calculator</h1>
+            <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: var(--muted);">Privacy Index for Non-HIPAA Entities</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="backToAppInputBtn" type="button" class="secondary-btn">Back to app input</button>
+          <div class="badge" id="currentAppNameBadge">Privacy Palette</div>
+          <button id="completeEvaluationBtn" type="button" class="primary-btn">Complete Evaluation</button>
+          <button id="shareEvaluationBtn" type="button" class="secondary-btn" disabled>Share to Cloud</button>
+          <button id="resetCalculationsBtn" type="button" class="secondary-btn">Reset calculations</button>
+        </div>
+      </div>
+
+      <div class="layout">
+        <section class="panel form-panel">
+          <div class="feature-grid" id="featureGrid"></div>
+        </section>
+
+        <aside class="panel summary-panel">
+          <div class="score-wrap">
+            <div class="result-row">
+              <div class="score" id="scoreValue">77</div>
+              <div class="score-tag" id="scoreTag">Strong</div>
+            </div>
+
+            <div class="meter" aria-label="Privacy score meter">
+              <div class="meter-fill" id="meterFill"></div>
+            </div>
+
+            <div class="legend">
+              <span>Low</span>
+              <span>Moderate</span>
+              <span>High</span>
+            </div>
+          </div>
+
+          <div class="risk-box">
+            <h3>Assessment</h3>
+            <p id="assessmentText">
+              The app evaluated demonstrates solid privacy hygiene with good access controls, encryption, and operational monitoring.
+            </p>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <small>Weighted score</small>
+              <strong id="weightedScore">77/100</strong>
+            </div>
+            <div class="stat">
+              <small>Risk level</small>
+              <strong id="riskLevel">Low</strong>
+            </div>
+            <div class="stat">
+              <small>Priority</small>
+              <strong id="priorityLevel">Improve retention</strong>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="footer-note">
+        Privacy Index = weighted average of control maturity across key data protection dimensions.
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="shareModal" aria-hidden="true" inert>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+        <div class="modal-header">
+          <h2 id="shareModalTitle">Share Evaluation</h2>
+          <button class="close-button" type="button" aria-label="Close" id="closeShareModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Your evaluation will be shared with others viewing this calculator.</p>
+          <div style="margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 4px;">
+            <strong>Evaluation:</strong> <span id="shareEvalName"></span><br/>
+            <strong>Reviewer:</strong> <span id="shareEvalUser"></span><br/>
+            <strong>Score:</strong> <span id="shareEvalScore"></span>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="secondary-btn" id="cancelShareModal">Cancel</button>
+            <button type="button" class="primary-btn" id="confirmShareBtn">Share to Cloud</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="featureModal" aria-hidden="true" inert>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-header">
+          <h2 id="modalTitle">Feature rubric</h2>
+          <button class="close-button" type="button" aria-label="Close" id="closeModal">×</button>
+        </div>
+        <div class="modal-body">
+          <ul class="rubric-list" id="modalRubricList"></ul>
+
+          <div>
+            <strong>Score this feature</strong>
+            <div class="score-picker">
+              <input id="modalScore" type="range" min="0" max="10" value="0" />
+              <div class="score-badge" id="modalScoreValue">0</div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="secondary-btn" id="cancelModal">Cancel</button>
+            <button type="button" class="primary-btn" id="saveFeatureScore">Save score</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script>
+      const featureDefinitions = {
+        pushNotificationsScreens: {
+          label: 'Push notifications and screen captures',
+          description: 'Sensitive content exposure in user alerts/screens',
+          rubric: [
+            { title: 'Notification content', text: 'Push notifications avoid exposing sensitive health or personal data in message body or preview.' },
+            { title: 'Screenshot controls', text: 'App prevents or minimizes exposing protected content in screenshots, previews, or app switcher views.' },
+            { title: 'User controls', text: 'Users can disable previews, alerts, or captures for sensitive content and sessions.' }
+          ],
+          initial: 7
+        },
+        piiLeakageLogsCrashReports: {
+          label: 'PII leakage through logs and crash reports',
+          description: 'Sanitization of diagnostic data',
+          rubric: [
+            { title: 'Log hygiene', text: 'Logs exclude raw identifiers, health data, and sensitive user metadata.' },
+            { title: 'Crash-report filtering', text: 'Crash reports redact or omit PII before collection or transmission.' },
+            { title: 'Monitoring controls', text: 'Diagnostic pipelines include automated checks for accidental disclosure.' }
+          ],
+          initial: 6
+        },
+        dataBackups: {
+          label: 'Data backups for the app',
+          description: 'Backup security and retention',
+          rubric: [
+            { title: 'Protection scope', text: 'Backups are encrypted and scoped to only data required for service continuity.' },
+            { title: 'Access control', text: 'Backup repositories use strong access restrictions and auditing.' },
+            { title: 'Recovery hygiene', text: 'Backup recovery is tested and restoration procedures avoid exposing sensitive data.' }
+          ],
+          initial: 7
+        },
+        ageAppropriatePrivacy: {
+          label: 'Age-appropriate privacy controls',
+          description: 'User age-range protections',
+          rubric: [
+            { title: 'Age segmentation', text: 'The app identifies and applies protections based on user age group or data sensitivity.' },
+            { title: 'Child-safe defaults', text: 'Younger-user settings are privacy-preserving by default and minimize unnecessary collection.' },
+            { title: 'Consent suitability', text: 'Consent and disclosures are appropriate for the user age group and comprehension level.' }
+          ],
+          initial: 7
+        },
+        onDeviceVsCloudPrediction: {
+          label: 'On-device vs. cloud prediction processing',
+          description: 'Where health predictions are computed',
+          rubric: [
+            { title: 'Processing location', text: 'Prediction workloads prefer on-device processing when it reduces exposure risk.' },
+            { title: 'Data minimization', text: 'Only required features or model inputs are transmitted to remote services.' },
+            { title: 'Risk review', text: 'Cloud processing uses documented controls, approvals, and data flow restrictions.' }
+          ],
+          initial: 8
+        },
+        embeddedSdksHealthData: {
+          label: 'Embedded SDKs forwarding health data',
+          description: 'Third-party analytics/ad SDK risk',
+          rubric: [
+            { title: 'SDK inventory', text: 'All embedded SDKs are inventoried and classified by data sensitivity and use.' },
+            { title: 'Health-data prevention', text: 'SDKs do not receive raw health data or identifiers without explicit necessity and consent.' },
+            { title: 'Vendor boundaries', text: 'Third-party contracts restrict data use, retention, and sharing for health-related flows.' }
+          ],
+          initial: 5
+        },
+        accountPurgeSharedAccounts: {
+          label: 'Purge account / backup / shared accounts / logs',
+          description: 'Deletion and account lifecycle controls',
+          rubric: [
+            { title: 'Account deletion', text: 'User account removal triggers full purge of personal data, backups, and access tokens where required.' },
+            { title: 'Shared account controls', text: 'Shared or family accounts limit visibility and isolate data boundaries.' },
+            { title: 'Log lifecycle', text: 'Logs, backups, and stale records are deleted or anonymized on a defined schedule.' }
+          ],
+          initial: 6
+        },
+        piiUrlQueryParams: {
+          label: 'PII in URL query parameters',
+          description: 'URL leakage risk',
+          rubric: [
+            { title: 'Parameter hygiene', text: 'URLs do not include personal identifiers, health details, or tokens.' },
+            { title: 'Logging mitigation', text: 'Query strings are stripped or redacted from logs, analytics, and error reporting.' },
+            { title: 'Secure sharing', text: 'Any necessary deep links are designed to avoid exposing sensitive data in browser history or referrers.' }
+          ],
+          initial: 5
+        },
+        dataMinimizationPermissionOverreach: {
+          label: 'Data minimization / permission overreach',
+          description: 'Over-collection and over-permissioning',
+          rubric: [
+            { title: 'Need-to-know collection', text: 'Only the minimum necessary data is collected for the feature or workflow.' },
+            { title: 'Permission scope', text: 'App permissions are limited to what is required and justified by real functionality.' },
+            { title: 'Review discipline', text: 'New features include a documented privacy review for unnecessary or excessive data access.' }
+          ],
+          initial: 6
+        },
+        dataSharingConsent: {
+          label: 'Data sharing consent',
+          description: 'Explicit consent and transparency',
+          rubric: [
+            { title: 'Transparency', text: 'Users receive clear, specific notice of what data is shared and with whom.' },
+            { title: 'Consent quality', text: 'Consent is informed, voluntary, and specific to the data use or recipient.' },
+            { title: 'Revocation', text: 'Users can withdraw consent and have downstream sharing changes applied in a timely manner.' }
+          ],
+          initial: 7
+        },
+        dataEncryption: {
+          label: 'Data encryption',
+          description: 'Encryption for data in use, transit, and rest',
+          rubric: [
+            { title: 'Encryption in transit', text: 'All sensitive data is encrypted while moving between devices, services, and APIs.' },
+            { title: 'Encryption at rest', text: 'Stored health and personal datasets are encrypted with strong and managed key controls.' },
+            { title: 'Device handling', text: 'Local encryption and secure storage are used for cached or persisted user data.' }
+          ],
+          initial: 8
+        },
+        accountSharingFeatures: {
+          label: 'Account sharing features',
+          description: 'Multi-user access and compartmentalization',
+          rubric: [
+            { title: 'Sharing model', text: 'Shared accounts are designed with clear boundaries and access roles.' },
+            { title: 'Data isolation', text: 'One user’s data is not exposed to another user without explicit authorization.' },
+            { title: 'Auditability', text: 'Shared access events are logged and monitored for privacy violations or misuse.' }
+          ],
+          initial: 6
+        },
+        firmwareUpdateDevice: {
+          label: 'Firmware update needed in a device',
+          description: 'Update and device security posture',
+          rubric: [
+            { title: 'Update coverage', text: 'The product tracks whether required firmware or device updates are necessary for security.' },
+            { title: 'Patch readiness', text: 'Update pathways exist and are operationally feasible for impacted device populations.' },
+            { title: 'Risk communication', text: 'Users are notified of required updates and their impact on privacy and security.' }
+          ],
+          initial: 7
+        },
+        breachNotificationTimeWindow: {
+          label: 'Breach notification time window',
+          description: 'Response readiness and reporting',
+          rubric: [
+            { title: 'Detection speed', text: 'The team can detect and triage potential breaches quickly within required timeframes.' },
+            { title: 'Notification workflow', text: 'A clear breach escalation and notification process exists for regulators and affected users.' },
+            { title: 'Practice maturity', text: 'The process is tested and can meet ambitious legal or contractual notification timelines.' }
+          ],
+          initial: 7
+        }
+      };
+
+      const weights = {
+        pushNotificationsScreens: 1.15,
+        piiLeakageLogsCrashReports: 1.35,
+        dataBackups: 1.1,
+        ageAppropriatePrivacy: 1.1,
+        onDeviceVsCloudPrediction: 1.25,
+        embeddedSdksHealthData: 1.35,
+        accountPurgeSharedAccounts: 1.2,
+        piiUrlQueryParams: 1.35,
+        dataMinimizationPermissionOverreach: 1.3,
+        dataSharingConsent: 1.2,
+        dataEncryption: 1.25,
+        accountSharingFeatures: 1.15,
+        firmwareUpdateDevice: 1.0,
+        breachNotificationTimeWindow: 1.25
+      };
+
+      const featureModalSelections = {
+        pushNotificationsScreens: {
+          lockScreen: false,
+          piiNotifications: false,
+          screenshots: false
+        },
+        piiLeakageLogsCrashReports: {
+          fullProfileVisible: false,
+          partialPiiInLogs: false,
+          anonymizedCrashReports: true
+        }
+      };
+
+      const STORAGE_PREFIX = 'privacyIndexApp_';
+      const HISTORY_KEY = 'privacyIndexHistory';
+      const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyCAvmNgINLF-wvOpUUYiGT0vjtTxDrBoD4",
+        authDomain: "pine-calculator.firebaseapp.com",
+        projectId: "pine-calculator",
+        databaseURL: "https://pine-calculator-default-rtdb.firebaseio.com",
+        storageBucket: "pine-calculator.firebasestorage.app",
+        messagingSenderId: "455821201356",
+        appId: "1:455821201356:web:abe28fd3da08076b659769",
+        measurementId: "G-H0GXK9K96P"
+      };
+      
+      let currentAppName = '';
+      let currentUserName = '';
+      let firebaseInitialized = false;
+      let database = null;
+      let sharedEvaluations = [];
+      let evaluationCompleted = false;
+      
+      // Initialize Firebase for loading shared evaluations on home page
+      function initializeFirebaseForReading() {
+        try {
+          if (typeof firebase === 'undefined') {
+            console.warn('Firebase library not loaded');
+            setSharedListMessage('Cloud evaluations could not be loaded (Firebase SDK unavailable).');
+            return;
+          }
+          if (firebase.apps && firebase.apps.length === 0) {
+            console.log('Initializing Firebase for reading shared evaluations...');
+            firebase.initializeApp(FIREBASE_CONFIG);
+            database = firebase.database();
+            firebaseInitialized = true;
+            console.log('Firebase initialized for reading');
+            loadSharedEvaluations();
+          } else if (firebase.apps && firebase.apps.length > 0) {
+            database = firebase.database();
+            firebaseInitialized = true;
+            console.log('Firebase already initialized');
+            loadSharedEvaluations();
+          }
+        } catch (error) {
+          console.error('Firebase initialization error:', error.message, error);
+          firebaseInitialized = false;
+        }
+      }
+
+      // Initialize Firebase for writing when share button is clicked
+      function initializeFirebase() {
+        try {
+          if (typeof firebase === 'undefined') {
+            console.warn('Firebase library not loaded');
+            return;
+          }
+          if (firebase.apps && firebase.apps.length === 0) {
+            console.log('Initializing Firebase for writing shared evaluations...');
+            firebase.initializeApp(FIREBASE_CONFIG);
+            database = firebase.database();
+            firebaseInitialized = true;
+            console.log('Firebase initialized for writing');
+            
+            // Test connection
+            database.ref('.info/connected').on('value', (snapshot) => {
+              if (snapshot.val() === true) {
+                console.log('Firebase: Connected to database');
+              } else {
+                console.warn('Firebase: Disconnected from database');
+              }
+            });
+          } else if (firebase.apps && firebase.apps.length > 0) {
+            database = firebase.database();
+            firebaseInitialized = true;
+            console.log('Firebase already initialized');
+          }
+        } catch (error) {
+          console.error('Firebase initialization error:', error.message, error);
+          firebaseInitialized = false;
+        }
+      }
+
+      // ---- Shared (cloud) evaluations --------------------------------------
+      let sharedEvaluationsRef = null;
+
+      // Case/whitespace-insensitive key so "CarePulse App" and "carepulse  app"
+      // entered by different people land in the same group.
+      function normalizeKey(value) {
+        return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      }
+
+      function formatScore(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '–';
+        return Number.isInteger(n) ? String(n) : n.toFixed(1);
+      }
+
+      function setSharedListMessage(text) {
+        const container = document.getElementById('sharedEvaluationsList');
+        if (container) container.innerHTML = `<div class="empty-state">${escapeHtml(text)}</div>`;
+      }
+
+      // Score for one cloud record. Falls back to recomputing from the saved
+      // feature scores if an older record has no weightedScore.
+      function getEvaluationScore(e) {
+        const direct = Number(e.weightedScore);
+        if (e.weightedScore !== undefined && e.weightedScore !== null && Number.isFinite(direct)) return direct;
+        if (e.featureScores && typeof e.featureScores === 'object') {
+          return computeScoreFor(e.featureScores, e.featureApplicability);
+        }
+        return null;
+      }
+
+      // One entry per app: every evaluator's score, the latest record, and the average.
+      function groupSharedByApp() {
+        const groups = new Map();
+        sharedEvaluations.forEach((e) => {
+          const key = normalizeKey(e.appName);
+          const score = getEvaluationScore(e);
+          if (!key || score === null) return;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push({ ...e, score });
+        });
+
+        return [...groups.entries()]
+          .map(([key, evaluations]) => {
+            evaluations.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const average = evaluations.reduce((sum, e) => sum + e.score, 0) / evaluations.length;
+            return {
+              key,
+              appName: evaluations[0].appName,
+              evaluations,
+              latest: evaluations[0],
+              average: Math.round(average * 10) / 10
+            };
+          })
+          .sort((a, b) => (b.latest.timestamp || 0) - (a.latest.timestamp || 0));
+      }
+
+      // Load evaluations shared by others (live updates)
+      function loadSharedEvaluations() {
+        if (!firebaseInitialized || !database) {
+          console.warn('Cannot load shared evaluations - Firebase not ready');
+          setSharedListMessage('Cloud evaluations are unavailable right now.');
+          return;
+        }
+
+        // Re-calling this (refresh button, after sharing) must not stack listeners.
+        if (sharedEvaluationsRef) sharedEvaluationsRef.off('value');
+        sharedEvaluationsRef = database.ref('evaluations');
+        if (!sharedEvaluations.length) setSharedListMessage('Loading shared evaluations…');
+
+        sharedEvaluationsRef.on('value', (snapshot) => {
+          const latestByKey = {};
+          Object.values(snapshot.val() || {}).forEach((e) => {
+            if (!e || typeof e !== 'object') return;
+            const k = `${normalizeKey(e.appName)}__${normalizeKey(e.userName)}`;
+            if (!latestByKey[k] || (e.timestamp || 0) > (latestByKey[k].timestamp || 0)) latestByKey[k] = e;
+          });
+          sharedEvaluations = Object.values(latestByKey);
+          renderSharedEvaluations();
+        }, (error) => {
+          console.error('Firebase read error:', error.code, error.message);
+          setSharedListMessage('Could not load shared evaluations (' + (error.code || 'error') + '). Check the Realtime Database read rules.');
+        });
+      }
+
+
+      // ---- Start screen tabs + Firebase export ------------------------------
+      function setStartTab(tab) {
+        document.querySelectorAll('.start-tabs button').forEach((btn) => {
+          const on = btn.dataset.tab === tab;
+          btn.classList.toggle('active', on);
+          btn.setAttribute('aria-selected', String(on));
+        });
+        document.getElementById('tabPanelEvaluate').hidden = tab !== 'evaluate';
+        document.getElementById('tabPanelExport').hidden = tab !== 'export';
+        if (tab === 'export') refreshExportSummary();
+      }
+
+      function setExportStatus(text, kind) {
+        const el = document.getElementById('exportStatus');
+        if (!el) return;
+        el.textContent = text || '';
+        el.className = 'export-status' + (kind ? ' ' + kind : '');
+      }
+
+      // Raw read of the whole evaluations node (no de-duplication) so the export
+      // keeps every record under its original Firebase key.
+      function fetchAllEvaluationsRaw() {
+        if (!database) initializeFirebaseForReading();
+        if (!database) return Promise.reject(new Error('Firebase is not available.'));
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timed out reading the database.')), 15000));
+        return Promise.race([database.ref('evaluations').once('value'), timeout]).then((snap) => snap.val() || {});
+      }
+
+      function refreshExportSummary() {
+        setExportStatus('Loading…');
+        return fetchAllEvaluationsRaw()
+          .then((data) => {
+            const records = Object.values(data).filter((e) => e && typeof e === 'object');
+            document.getElementById('exportCountEvals').textContent = records.length;
+            document.getElementById('exportCountApps').textContent = new Set(records.map((e) => normalizeKey(e.appName)).filter(Boolean)).size;
+            document.getElementById('exportCountUsers').textContent = new Set(records.map((e) => normalizeKey(e.userName)).filter(Boolean)).size;
+            setExportStatus('');
+            return data;
+          })
+          .catch((err) => {
+            setExportStatus('Could not read evaluations: ' + (err.code || err.message), 'error');
+            throw err;
+          });
+      }
+
+      function downloadEvaluationsExport() {
+        const btn = document.getElementById('downloadExportBtn');
+        btn.disabled = true;
+        setExportStatus('Fetching latest data…');
+        refreshExportSummary()
+          .then((data) => {
+            const count = Object.keys(data).length;
+            if (!count) { setExportStatus('No evaluations found in the database.', 'error'); return; }
+            const format = (document.querySelector('input[name="exportFormat"]:checked') || {}).value;
+            const payload = format === 'node' ? data : { evaluations: data };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pine-evaluations-${new Date().toISOString().slice(0, 10)}${format === 'node' ? '-node' : ''}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setExportStatus(`Exported ${count} evaluation${count === 1 ? '' : 's'}.`, 'ok');
+          })
+          .catch(() => {})
+          .finally(() => { btn.disabled = false; });
+      }
+
+      // ---- App categories (emoji) --------------------------------------------
+      const APP_CATEGORIES = [
+        { id: 'wellness',  emoji: '🧘🏻', label: 'Personal wellness', apps: ['if-me', 'hey linda', 'medito'] },
+        { id: 'sleep',     emoji: '😴',   label: 'Sleep',             apps: ['sleep diaries', 'sleep diary', 'plees tracker', 'gadgetbridge'] },
+        { id: 'diabetes',  emoji: '💉',   label: 'Diabetes',          apps: ['xdrip+', 'xdrip plus', 'glucosio', 'androidaps'] },
+        { id: 'heart',     emoji: '🫀',   label: 'Heart',             apps: ['bleheartratelogger', 'spix', 'heartratemonitor'] },
+        { id: 'menstrual', emoji: '👩🏻', label: 'Menstrual',         apps: ['menstrudel', 'mensinator', 'mesinator', 'drip'] }
+      ];
+      const OTHER_CATEGORY = { id: 'other', emoji: '📱', label: 'Other', apps: [] };
+
+      // Ignore case, spaces, hyphens and "+" so "xDrip+", "xdrip" and "X-Drip" all match.
+      function looseKey(value) {
+        return String(value || '').toLowerCase().replace(/\+/g, 'plus').replace(/[^a-z0-9]/g, '');
+      }
+
+      const APP_CATEGORY_LOOKUP = (() => {
+        const map = new Map();
+        APP_CATEGORIES.forEach((cat) => cat.apps.forEach((name) => map.set(looseKey(name), cat)));
+        map.set('xdrip', APP_CATEGORIES[2]); // "xDrip+" typed without the plus
+        return map;
+      })();
+
+      function getAppCategory(appName) {
+        return APP_CATEGORY_LOOKUP.get(looseKey(appName)) || OTHER_CATEGORY;
+      }
+
+      function getAppEmoji(appName) {
+        return getAppCategory(appName).emoji;
+      }
+
+      let sharedView = 'cards'; // 'cards' | 'category' | 'chart'
+
+      function setSharedView(view) {
+        sharedView = view;
+        document.querySelectorAll('#sharedViewToggle button').forEach((btn) => {
+          const on = btn.dataset.view === view;
+          btn.classList.toggle('active', on);
+          btn.setAttribute('aria-pressed', String(on));
+        });
+        renderSharedEvaluations();
+      }
+
+      // Groups app groups by emoji category; category mean = mean of its apps' averages.
+      function groupByCategory(groups) {
+        const map = new Map();
+        groups.forEach((g) => {
+          const cat = getAppCategory(g.appName);
+          if (!map.has(cat.id)) map.set(cat.id, { cat, apps: [] });
+          map.get(cat.id).apps.push(g);
+        });
+        return [...APP_CATEGORIES, OTHER_CATEGORY]
+          .filter((c) => map.has(c.id))
+          .map((c) => {
+            const entry = map.get(c.id);
+            const mean = entry.apps.reduce((sum, a) => sum + a.average, 0) / entry.apps.length;
+            const evalCount = entry.apps.reduce((sum, a) => sum + a.evaluations.length, 0);
+            return { cat: c, apps: entry.apps, mean: Math.round(mean * 10) / 10, evalCount };
+          });
+      }
+
+      const clampPct = (n) => Math.max(0, Math.min(100, Number(n) || 0));
+
+      // One dot per evaluator on a 0-100 track (red / orange / green zones) + a bar for the mean.
+      function renderDotPlot(g) {
+        const dots = g.evaluations.map((e) => `<span class="dot" data-band="${getScoreBand(e.score)}" style="left:${clampPct(e.score)}%" title="${escapeHtml(e.userName || 'Unknown')}: ${formatScore(e.score)}"></span>`).join('');
+        const n = g.evaluations.length;
+        return `
+          <div class="dotplot" role="img" aria-label="${escapeHtml(g.appName)}: ${n} evaluation${n === 1 ? '' : 's'}, mean ${formatScore(g.average)}">
+            <div class="dotplot-track">${dots}<span class="dot-mean" style="left:${clampPct(g.average)}%" title="Mean: ${formatScore(g.average)}"></span></div>
+            <div class="dotplot-axis" aria-hidden="true">
+              <span style="left:0%">0</span><span style="left:50%">50</span><span style="left:80%">80</span><span style="left:100%">100</span>
+            </div>
+          </div>`;
+      }
+
+      function renderCategoryHead(c) {
+        const band = getScoreBand(c.mean);
+        return `
+          <div class="cat-head">
+            <span class="cat-emoji" aria-hidden="true">${c.cat.emoji}</span>
+            <div>
+              <div class="cat-title">${escapeHtml(c.cat.label)}</div>
+              <div class="cat-sub">${c.apps.length} app${c.apps.length === 1 ? '' : 's'} · ${c.evalCount} evaluation${c.evalCount === 1 ? '' : 's'}</div>
+            </div>
+            <div class="score-pill" data-band="${band}" title="Mean of the app averages in this category">
+              <strong>Mean ${formatScore(c.mean)}</strong>
+              <small>${SCORE_LABELS[band]}</small>
+            </div>
+          </div>`;
+      }
+
+      function renderSharedCard(g) {
+        const n = g.evaluations.length;
+        const band = getScoreBand(g.average);
+        const latestDate = g.latest.timestamp ? new Date(g.latest.timestamp).toLocaleDateString() : '';
+        const visible = g.evaluations.slice(0, 6);
+        const extra = n - visible.length;
+
+        const chips = visible.map((e) => `
+          <button type="button" class="shared-evaluator-badge" data-band="${getScoreBand(e.score)}" data-app-key="${escapeHtml(g.key)}" data-user-name="${escapeHtml(e.userName || '')}">
+            ${escapeHtml(e.userName || 'Unknown')}<span>${formatScore(e.score)}</span>
+          </button>`).join('') + (extra > 0 ? `<span class="shared-more">+${extra} more</span>` : '');
+
+        return `
+          <div class="shared-card" role="listitem" data-band="${band}" data-app-key="${escapeHtml(g.key)}" data-count="${n}" data-single-user="${n === 1 ? escapeHtml(g.latest.userName || '') : ''}">
+            <div class="shared-card-head">
+              <div>
+                <div class="shared-card-title"><span class="app-emoji" aria-hidden="true">${getAppEmoji(g.appName)}</span>${escapeHtml(g.appName)}</div>
+                <div class="shared-card-sub">${n} evaluation${n === 1 ? '' : 's'} · latest by <strong>${escapeHtml(g.latest.userName || 'Unknown')}</strong>${latestDate ? ' · ' + latestDate : ''}</div>
+              </div>
+              <div class="score-pill" data-band="${band}" title="${n > 1 ? 'Average of ' + n + ' evaluations' : 'Single evaluation'}">
+                <strong>${n > 1 ? 'Avg ' : ''}${formatScore(g.average)}</strong>
+                <small>${SCORE_LABELS[band]}</small>
+              </div>
+            </div>
+            <div class="shared-bar" aria-hidden="true"><span style="width:${clampPct(g.average)}%"></span></div>
+            ${n > 1 ? `<div class="shared-dotplot"><div class="shared-dotplot-label">How each user scored it (bar = mean ${formatScore(g.average)}):</div>${renderDotPlot(g)}</div>` : ''}
+            <div class="shared-evaluators">
+              <div class="shared-evaluators-label">${n > 1 ? 'Evaluated by (color = their score):' : 'Evaluated by:'}</div>
+              ${chips}
+            </div>
+            ${n > 1 ? `<button type="button" class="shared-view-all-link" data-app-key="${escapeHtml(g.key)}">View all ${n} evaluations</button>` : ''}
+          </div>`;
+      }
+
+      function renderChartRow(g) {
+        const n = g.evaluations.length;
+        const band = getScoreBand(g.average);
+        return `
+          <button type="button" class="chart-app-row" data-app-key="${escapeHtml(g.key)}" data-count="${n}" data-single-user="${n === 1 ? escapeHtml(g.latest.userName || '') : ''}">
+            <div class="chart-app-name"><span class="app-emoji" aria-hidden="true">${getAppEmoji(g.appName)}</span>${escapeHtml(g.appName)}<small>${n} evaluation${n === 1 ? '' : 's'}</small></div>
+            ${renderDotPlot(g)}
+            <div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>
+          </button>`;
+      }
+
+      function renderChartView(groups) {
+        const cats = groupByCategory(groups);
+        const summary = cats.map((c) => `
+          <div class="chart-row">
+            <div class="chart-name"><span class="app-emoji" aria-hidden="true">${c.cat.emoji}</span>${escapeHtml(c.cat.label)}</div>
+            <div class="chart-track"><div class="chart-bar" style="width:${clampPct(c.mean)}%; background:${getScoreLevelColor(c.mean)};"></div></div>
+            <div class="chart-score" style="color:${getScoreLevelColor(c.mean)};">${formatScore(c.mean)}</div>
+          </div>`).join('');
+
+        const sections = cats.map((c) => `
+          <div class="cat-section">
+            ${renderCategoryHead(c)}
+            ${c.apps.map(renderChartRow).join('')}
+          </div>`).join('');
+
+        return `
+          <div class="chart-key" aria-label="Chart key">
+            <span><i class="key-dot"></i>One user's score</span>
+            <span><i class="key-mean"></i>Mean score for the app</span>
+          </div>
+          <div class="cat-summary-chart" aria-label="Mean score by category">${summary}</div>
+          ${sections}`;
+      }
+
+      // Render shared evaluations in the selected view: all apps, grouped by emoji category, or charts.
+      function renderSharedEvaluations() {
+        const container = document.getElementById('sharedEvaluationsList');
+        if (!container) return;
+
+        const groups = groupSharedByApp();
+        if (!groups.length) {
+          setSharedListMessage('No shared evaluations yet');
+          return;
+        }
+
+        if (sharedView === 'chart') {
+          container.innerHTML = renderChartView(groups);
+        } else if (sharedView === 'category') {
+          container.innerHTML = groupByCategory(groups).map((c) => `
+            <div class="cat-section">
+              ${renderCategoryHead(c)}
+              ${c.apps.map(renderSharedCard).join('')}
+            </div>`).join('');
+        } else {
+          container.innerHTML = groups.map(renderSharedCard).join('');
+        }
+      }
+
+      // One delegated handler instead of re-binding listeners on every render.
+      function handleSharedListClick(event) {
+        const chip = event.target.closest('.shared-evaluator-badge');
+        if (chip) {
+          loadSharedEvaluation(chip.dataset.appKey, chip.dataset.userName);
+          return;
+        }
+        const link = event.target.closest('.shared-view-all-link');
+        if (link) {
+          showSharedAppComparison(link.dataset.appKey);
+          return;
+        }
+        const card = event.target.closest('.shared-card, .chart-app-row');
+        if (!card) return;
+        if (Number(card.dataset.count) > 1) {
+          showSharedAppComparison(card.dataset.appKey);
+        } else {
+          loadSharedEvaluation(card.dataset.appKey, card.dataset.singleUser);
+        }
+      }
+
+      function closeSharedComparison() {
+        const existing = document.getElementById('sharedComparisonModal');
+        if (existing) existing.remove();
+      }
+
+      function showSharedAppComparison(appKey) {
+        const group = groupSharedByApp().find((g) => g.key === normalizeKey(appKey));
+        if (!group) {
+          alert('No evaluations found for this app');
+          return;
+        }
+
+        closeSharedComparison();
+        const band = getScoreBand(group.average);
+        const n = group.evaluations.length;
+
+        const rows = group.evaluations.map((e) => `
+          <button type="button" class="compare-row" data-user-name="${escapeHtml(e.userName || '')}">
+            <span>
+              <strong>${escapeHtml(e.userName || 'Unknown')}</strong><br />
+              <small style="color: var(--muted);">${e.timestamp ? new Date(e.timestamp).toLocaleDateString() : ''}</small>
+            </span>
+            <span class="score-pill" data-band="${getScoreBand(e.score)}"><strong>${formatScore(e.score)}</strong></span>
+          </button>`).join('');
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-backdrop open';
+        modal.id = 'sharedComparisonModal';
+        modal.setAttribute('aria-hidden', 'false');
+        modal.innerHTML = `
+          <div class="modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(group.appName)} shared evaluations" style="max-width: 500px;">
+            <div class="modal-header">
+              <h2><span class="app-emoji" aria-hidden="true">${getAppEmoji(group.appName)}</span>${escapeHtml(group.appName)} (${n})</h2>
+              <button class="close-button" type="button" aria-label="Close" data-close>×</button>
+            </div>
+            <div class="modal-body" style="max-height: 420px; overflow-y: auto; padding-top: 0;">
+              <div class="compare-summary">
+                <span>Average across ${n} evaluation${n === 1 ? '' : 's'}</span>
+                <span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>
+              </div>
+              <div style="padding: 14px 0 6px;">
+                <div class="shared-dotplot-label">Spread of scores (bar = mean)</div>
+                ${renderDotPlot(group)}
+              </div>
+              ${rows}
+            </div>
+            <div class="modal-actions" style="padding: 0 22px 20px; margin-top: 0;">
+              <button type="button" class="secondary-btn" data-close>Close</button>
+            </div>
+          </div>`;
+
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (ev) => {
+          if (ev.target === modal || ev.target.closest('[data-close]')) {
+            closeSharedComparison();
+            return;
+          }
+          const row = ev.target.closest('.compare-row');
+          if (row) {
+            const userName = row.dataset.userName;
+            closeSharedComparison();
+            loadSharedEvaluation(group.key, userName);
+          }
+        });
+      }
+
+      // Load a shared evaluation
+      function loadSharedEvaluation(appKey, userName) {
+        const evaluation = sharedEvaluations.find((e) =>
+          normalizeKey(e.appName) === normalizeKey(appKey) && normalizeKey(e.userName) === normalizeKey(userName));
+        if (!evaluation) {
+          alert('Evaluation not found');
+          return;
+        }
+
+        currentAppName = evaluation.appName;
+        currentUserName = evaluation.userName;
+        evaluationCompleted = false;
+        featureScores = { ...defaultFeatureScores, ...(evaluation.featureScores || {}) };
+        featureApplicability = { ...defaultFeatureApplicability, ...(evaluation.featureApplicability || {}) };
+
+        document.getElementById('currentAppNameTitle').textContent = currentAppName;
+        document.getElementById('currentAppNameBadge').textContent = currentAppName;
+        document.getElementById('appStartScreen').style.display = 'none';
+        document.getElementById('evaluationScreen').style.display = 'block';
+        document.getElementById('shareEvaluationBtn').disabled = true;
+        renderFeatures();
+        updateUI();
+      }
+
+      // Mark evaluation as completed and save locally
+      function completeEvaluation() {
+        if (!currentAppName) {
+          alert('No evaluation in progress');
+          return;
+        }
+        
+        // Save to local storage
+        persistCurrentApp();
+        
+        // Mark as completed
+        evaluationCompleted = true;
+        
+        // Enable the share button
+        const shareBtn = document.getElementById('shareEvaluationBtn');
+        shareBtn.disabled = false;
+        
+        alert('Evaluation completed! You can now share it to the cloud.');
+        console.log('Evaluation completed for:', currentAppName);
+      }
+
+      // Share current evaluation to cloud
+      function shareEvaluationToCloud() {
+        if (!evaluationCompleted) {
+          alert('Please complete the evaluation first by clicking "Complete Evaluation" button.');
+          return;
+        }
+        
+        // Initialize Firebase only when sharing
+        if (!firebaseInitialized) {
+          console.log('Initializing Firebase for cloud sharing...');
+          initializeFirebase();
+        }
+        
+        console.log('Share button clicked. Firebase initialized:', firebaseInitialized, 'Database:', !!database);
+        
+        if (!firebaseInitialized) {
+          console.warn('Firebase not initialized');
+          alert('Cloud sharing is not available. Evaluations are saved locally. Firebase failed to initialize.');
+          return;
+        }
+        
+        if (!database) {
+          console.warn('Database reference not available');
+          alert('Cloud sharing is not available. Evaluations are saved locally. Database connection failed.');
+          return;
+        }
+
+        const safeKey = (v) => encodeURIComponent(v.trim().toLowerCase()).replace(/\./g, '%2E');
+        const evaluationId = `${safeKey(currentAppName)}__${safeKey(currentUserName)}`;
+        const evaluationScore = computeScore();
+        
+        const evaluationData = {
+          appName: currentAppName,
+          userName: currentUserName,
+          featureScores: featureScores,
+          featureApplicability: featureApplicability,
+          weightedScore: evaluationScore,
+          timestamp: Date.now()
+        };
+
+        console.log('Attempting to save evaluation:', evaluationId);
+        console.log('Database ref path:', `evaluations/${evaluationId}`);
+        console.log('Final score (0-100):', evaluationScore);
+        console.log('Data being saved:', evaluationData);
+        
+        // Create a timeout promise that rejects after 10 seconds
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Firebase operation timed out after 10 seconds')), 10000);
+        });
+        
+        const ref = database.ref(`evaluations/${evaluationId}`);
+        console.log('Database reference created:', ref);
+        
+        Promise.race([ref.set(evaluationData), timeoutPromise])
+          .then(() => {
+            console.log('Evaluation saved successfully to Firebase');
+            alert('Evaluation shared successfully!');
+            closeShareModal();
+            loadSharedEvaluations();
+          })
+          .catch((error) => {
+            console.error('Firebase write error:', error.code, error.message, error);
+            console.error('Full error object:', error);
+            const errorMsg = 'Error sharing evaluation: ' + error.message + '\n\nCommon fixes:\n1. Check Firebase Realtime Database Rules: { "rules": { ".read": true, ".write": true } }\n2. Ensure databaseURL is correct in config\n3. Check browser console (F12) for CORS or network errors';
+            alert(errorMsg);
+          });
+      }
+
+      function calculateWeightedScore() {
+        return computeScore();
+      }
+
+      function openShareModal() {
+        document.getElementById('shareEvalName').textContent = currentAppName;
+        document.getElementById('shareEvalUser').textContent = currentUserName;
+        document.getElementById('shareEvalScore').textContent = calculateWeightedScore();
+        document.getElementById('shareModal').removeAttribute('inert');
+        document.getElementById('shareModal').setAttribute('aria-hidden', 'false');
+        document.getElementById('shareModal').style.display = 'flex';
+      }
+
+      function closeShareModal() {
+        document.getElementById('shareModal').setAttribute('inert', '');
+        document.getElementById('shareModal').setAttribute('aria-hidden', 'true');
+        document.getElementById('shareModal').style.display = 'none';
+      }
+
+      function getDefaultFeatureScores() {
+        return Object.fromEntries(
+          Object.entries(featureDefinitions).map(([key, value]) => [key, value.initial])
+        );
+      }
+
+      function getDefaultFeatureApplicability() {
+        return Object.fromEntries(
+          Object.keys(featureDefinitions).map((key) => [key, true])
+        );
+      }
+
+      const defaultFeatureScores = getDefaultFeatureScores();
+      const defaultFeatureApplicability = getDefaultFeatureApplicability();
+
+      let featureScores = { ...defaultFeatureScores };
+      let featureApplicability = { ...defaultFeatureApplicability };
+
+      function getAppStorageKey(appName, userName) {
+        const appSlug = encodeURIComponent(appName.trim().toLowerCase());
+        if (userName) {
+          const userSlug = encodeURIComponent(userName.trim().toLowerCase());
+          return `${STORAGE_PREFIX}${appSlug}::${userSlug}`;
+        }
+        return `${STORAGE_PREFIX}${appSlug}`;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function getScoreLevel(score) {
+        const value = Number(score);
+        if (Number.isNaN(value)) return 'moderate';
+        if (value <= 3) return 'low';
+        if (value <= 7) return 'moderate';
+        return 'high';
+      }
+
+      // Single source of truth for the green / orange / red coding.
+      // Every overall score in the app (local and cloud) is on a 0-100 scale.
+      const SCORE_LABELS = { high: 'Strong', moderate: 'Moderate', low: 'Weak' };
+      const SCORE_COLORS = { high: '#27ae60', moderate: '#f39c12', low: '#e74c3c' };
+
+      function getScoreBand(score) {
+        const value = Number(score);
+        if (!Number.isFinite(value)) return 'moderate';
+        if (value >= 80) return 'high';      // green
+        if (value >= 50) return 'moderate';  // orange
+        return 'low';                        // red
+      }
+
+      function getScoreLevelColor(score) {
+        return SCORE_COLORS[getScoreBand(score)];
+      }
+
+      function setScoreBadgeLevel(element, value) {
+        if (!element) return;
+        const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+        const normalizedValue = String(safeValue);
+        const nextLevel = getScoreLevel(safeValue);
+
+        if (element.dataset.level !== nextLevel || element.textContent !== normalizedValue) {
+          element.dataset.level = nextLevel;
+          element.textContent = normalizedValue;
+        }
+      }
+
+      function getPushNotificationScore(selection) {
+        const scoring = [
+          { key: 'lockScreen', yes: 4, no: 10 },
+          { key: 'piiNotifications', yes: 2, no: 10 },
+          { key: 'screenshots', yes: 10, no: 0, na: 10 }
+        ];
+
+        const values = scoring.map((item) => {
+          const value = selection[item.key];
+          if (value === true) return item.yes;
+          if (value === null || value === undefined) return item.na ?? item.no;
+          return item.no;
+        });
+
+        const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+        return Math.round(average);
+      }
+
+      function renderPushNotificationQuestions(featureId) {
+        const selection = featureModalSelections[featureId] || {
+          lockScreen: false,
+          piiNotifications: false,
+          screenshots: false
+        };
+
+        const questions = [
+          {
+            key: 'lockScreen',
+            label: 'Exposure on lock screen',
+            yesValue: 4,
+            noValue: 10
+          },
+          {
+            key: 'piiNotifications',
+            label: 'Presence of PII/PHI in notifications',
+            yesValue: 2,
+            noValue: 10
+          },
+          {
+            key: 'screenshots',
+            label: 'Black screen on taking screenshots',
+            yesValue: 10,
+            noValue: 0,
+            naValue: 10
+          }
+        ];
+
+        const rubricList = document.getElementById('modalRubricList');
+        const scoreInput = document.getElementById('modalScore');
+        const scoreValue = document.getElementById('modalScoreValue');
+
+        rubricList.innerHTML = questions
+          .map((question) => {
+            const selectedYes = selection[question.key] === true;
+            const selectedNo = selection[question.key] === false;
+            const selectedNa = selection[question.key] === null || selection[question.key] === undefined;
+            return `
+              <li>
+                <strong>${question.label}</strong><br />
+                <label>
+                  <input type="radio" name="${question.key}" value="yes" ${selectedYes ? 'checked' : ''} /> Yes (${question.yesValue})
+                </label>
+                &nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="${question.key}" value="no" ${selectedNo ? 'checked' : ''} /> No (${question.noValue})
+                </label>
+                ${question.key === 'screenshots' ? `
+                  &nbsp;&nbsp;
+                  <label>
+                    <input type="radio" name="${question.key}" value="na" ${selectedNa ? 'checked' : ''} /> N/A (${question.naValue})
+                  </label>
+                ` : ''}
+              </li>
+            `;
+          })
+          .join('');
+
+        const updateComputedValue = () => {
+          const answers = {
+            lockScreen: document.querySelector('input[name="lockScreen"]:checked')?.value === 'yes',
+            piiNotifications: document.querySelector('input[name="piiNotifications"]:checked')?.value === 'yes',
+            screenshots: (() => {
+              const value = document.querySelector('input[name="screenshots"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })()
+          };
+
+          featureModalSelections[featureId] = answers;
+          const computed = getPushNotificationScore(answers);
+          scoreInput.value = computed;
+          scoreInput.disabled = true;
+          scoreValue.textContent = computed;
+        };
+
+        document.querySelectorAll('input[name="lockScreen"], input[name="piiNotifications"], input[name="screenshots"]').forEach((radio) => {
+          radio.addEventListener('change', updateComputedValue);
+        });
+
+        updateComputedValue();
+      }
+
+      function getOnDeviceVsCloudPredictionScore(selection) {
+        const scoring = [
+          { key: 'rawSensorTransmitted', yes: 2, no: 10, na: 10 },
+          { key: 'inferenceThirdPartyApi', yes: 2, no: 10, na: 10 },
+          { key: 'inferenceServerSideDurable', yes: 4, no: 10, na: 10 },
+          { key: 'inferenceLocationDisclosure', yes: 10, no: 6, na: 10 }
+        ];
+
+        const values = scoring.map((item) => {
+          const value = selection[item.key];
+          if (value === true) return item.yes;
+          if (value === false) return item.no;
+          return item.na ?? item.no;
+        });
+
+        const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+        return Math.round(average);
+      }
+
+      function renderOnDeviceVsCloudPredictionQuestions(featureId) {
+        const selection = featureModalSelections[featureId] || {
+          rawSensorTransmitted: false,
+          inferenceThirdPartyApi: false,
+          inferenceServerSideDurable: false,
+          inferenceLocationDisclosure: false
+        };
+
+        const questions = [
+          {
+            key: 'rawSensorTransmitted',
+            label: 'Raw sensor/biometric data transmitted to cloud for inference',
+            yesValue: 2,
+            noValue: 10,
+            naValue: 10
+          },
+          {
+            key: 'inferenceThirdPartyApi',
+            label: 'Inference routed to third-party LLM/ML API without DPA/BAA',
+            yesValue: 2,
+            noValue: 10,
+            naValue: 10
+          },
+          {
+            key: 'inferenceServerSideDurable',
+            label: 'Derived inference stored server-side linked to a durable identity',
+            yesValue: 4,
+            noValue: 10,
+            naValue: 10
+          },
+          {
+            key: 'inferenceLocationDisclosure',
+            label: 'No disclosure of where inference runs',
+            yesValue: 10,
+            noValue: 6,
+            naValue: 10
+          }
+        ];
+
+        const rubricList = document.getElementById('modalRubricList');
+        const scoreInput = document.getElementById('modalScore');
+        const scoreValue = document.getElementById('modalScoreValue');
+
+        rubricList.innerHTML = questions
+          .map((question) => {
+            const selectedYes = selection[question.key] === true;
+            const selectedNo = selection[question.key] === false;
+            const selectedNa = selection[question.key] === null || selection[question.key] === undefined;
+            return `
+              <li>
+                <strong>${question.label}</strong><br />
+                <label>
+                  <input type="radio" name="${question.key}" value="yes" ${selectedYes ? 'checked' : ''} /> Yes (${question.yesValue})
+                </label>
+                &nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="${question.key}" value="no" ${selectedNo ? 'checked' : ''} /> No (${question.noValue})
+                </label>
+                &nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="${question.key}" value="na" ${selectedNa ? 'checked' : ''} /> N/A (${question.naValue})
+                </label>
+              </li>
+            `;
+          })
+          .join('');
+
+        const updateComputedValue = () => {
+          const answers = {
+            rawSensorTransmitted: document.querySelector('input[name="rawSensorTransmitted"]:checked')?.value === 'yes',
+            inferenceThirdPartyApi: document.querySelector('input[name="inferenceThirdPartyApi"]:checked')?.value === 'yes',
+            inferenceServerSideDurable: document.querySelector('input[name="inferenceServerSideDurable"]:checked')?.value === 'yes',
+            inferenceLocationDisclosure: (() => {
+              const value = document.querySelector('input[name="inferenceLocationDisclosure"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })()
+          };
+
+          featureModalSelections[featureId] = answers;
+          const computed = getOnDeviceVsCloudPredictionScore(answers);
+          scoreInput.value = computed;
+          scoreInput.disabled = true;
+          scoreValue.textContent = computed;
+        };
+
+        document.querySelectorAll('input[name="rawSensorTransmitted"], input[name="inferenceThirdPartyApi"], input[name="inferenceServerSideDurable"], input[name="inferenceLocationDisclosure"]').forEach((radio) => {
+          radio.addEventListener('change', updateComputedValue);
+        });
+
+        updateComputedValue();
+      }
+
+      function getAgeAppropriatePrivacyScore(selection) {
+        const scoring = [
+          { key: 'ageVerification', yes: 10, no: 8, na: 10 },
+          { key: 'childProtection', yes: 10, no: 4, na: 10 },
+          { key: 'parentalConsent', yes: 10, no: 4, na: 10 },
+          { key: 'childPrivacyCompliance', yes: 10, no: 4, na: 10 }
+        ];
+
+        const values = scoring.map((item) => {
+          const value = selection[item.key];
+          if (value === true) return item.yes;
+          if (value === false) return item.no;
+          return item.na ?? item.no;
+        });
+
+        const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+        return Math.round(average);
+      }
+
+      function renderAgeAppropriatePrivacyQuestions(featureId) {
+        const selection = featureModalSelections[featureId] || {
+          ageVerification: false,
+          childProtection: false,
+          parentalConsent: false,
+          childPrivacyCompliance: false
+        };
+
+        const questions = [
+          {
+            key: 'ageVerification',
+            label: 'Age verification feature in the app?',
+            yesValue: 10,
+            noValue: 8,
+            naValue: 10
+          },
+          {
+            key: 'childProtection',
+            label: 'Protection for children/teens',
+            yesValue: 10,
+            noValue: 4,
+            naValue: 10
+          },
+          {
+            key: 'parentalConsent',
+            label: 'Parental or guardian consent',
+            yesValue: 10,
+            noValue: 4,
+            naValue: 10
+          },
+          {
+            key: 'childPrivacyCompliance',
+            label: 'Compliance with child privacy regulations',
+            yesValue: 10,
+            noValue: 4,
+            naValue: 10
+          }
+        ];
+
+        const rubricList = document.getElementById('modalRubricList');
+        const scoreInput = document.getElementById('modalScore');
+        const scoreValue = document.getElementById('modalScoreValue');
+
+        rubricList.innerHTML = questions
+          .map((question) => {
+            const selectedYes = selection[question.key] === true;
+            const selectedNo = selection[question.key] === false;
+            const selectedNa = selection[question.key] === null || selection[question.key] === undefined;
+            return `
+              <li>
+                <strong>${question.label}</strong><br />
+                <label>
+                  <input type="radio" name="${question.key}" value="yes" ${selectedYes ? 'checked' : ''} /> Yes (${question.yesValue})
+                </label>
+                &nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="${question.key}" value="no" ${selectedNo ? 'checked' : ''} /> No (${question.noValue})
+                </label>
+                &nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="${question.key}" value="na" ${selectedNa ? 'checked' : ''} /> N/A (${question.naValue})
+                </label>
+              </li>
+            `;
+          })
+          .join('');
+
+        const updateComputedValue = () => {
+          const answers = {
+            ageVerification: (() => {
+              const value = document.querySelector('input[name="ageVerification"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })(),
+            childProtection: (() => {
+              const value = document.querySelector('input[name="childProtection"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })(),
+            parentalConsent: (() => {
+              const value = document.querySelector('input[name="parentalConsent"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })(),
+            childPrivacyCompliance: (() => {
+              const value = document.querySelector('input[name="childPrivacyCompliance"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })()
+          };
+
+          featureModalSelections[featureId] = answers;
+          const computed = getAgeAppropriatePrivacyScore(answers);
+          scoreInput.value = computed;
+          scoreInput.disabled = true;
+          scoreValue.textContent = computed;
+        };
+
+        document.querySelectorAll('input[name="ageVerification"], input[name="childProtection"], input[name="parentalConsent"], input[name="childPrivacyCompliance"]').forEach((radio) => {
+          radio.addEventListener('change', updateComputedValue);
+        });
+
+        updateComputedValue();
+      }
+
+      function getDataBackupsScore(selection) {
+        const scoring = [
+          { key: 'sensitiveDataInBackups', yes: 2, no: 10, na: 10 },
+          { key: 'backupUnencrypted', yes: 2, no: 10, na: 10 },
+          { key: 'userControlBackups', yes: 10, no: 8, na: 10 },
+          { key: 'dataMinimization', yes: 10, no: 8, na: 10 },
+          { key: 'cloudBackup', yes: 4, no: 10, na: 10 }
+        ];
+
+        const values = scoring.map((item) => {
+          const value = selection[item.key];
+          if (value === true) return item.yes;
+          if (value === false) return item.no;
+          return item.na ?? item.no;
+        });
+
+        const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+        return Math.round(average);
+      }
+
+      function renderDataBackupQuestions(featureId) {
+        const selection = featureModalSelections[featureId] || {
+          sensitiveDataInBackups: false,
+          backupUnencrypted: false,
+          userControlBackups: false,
+          dataMinimization: false,
+          cloudBackup: false
+        };
+
+        const questions = [
+          {
+            key: 'sensitiveDataInBackups',
+            label: 'Sensitive health data/credentials in backups',
+            yesValue: 2,
+            noValue: 10,
+            naValue: 10
+          },
+          {
+            key: 'backupUnencrypted',
+            label: 'Backup data unencrypted',
+            yesValue: 2,
+            noValue: 10,
+            naValue: 10
+          },
+          {
+            key: 'userControlBackups',
+            label: 'User control over backups',
+            yesValue: 10,
+            noValue: 8,
+            naValue: 10
+          },
+          {
+            key: 'dataMinimization',
+            label: 'Data minimization (only essential data backed up)',
+            yesValue: 10,
+            noValue: 8,
+            naValue: 10
+          },
+          {
+            key: 'cloudBackup',
+            label: 'Is the data backup up on cloud?',
+            yesValue: 4,
+            noValue: 10,
+            naValue: 10
+          }
+        ];
+
+        const rubricList = document.getElementById('modalRubricList');
+        const scoreInput = document.getElementById('modalScore');
+        const scoreValue = document.getElementById('modalScoreValue');
+
+        rubricList.innerHTML = questions
+          .map((question) => {
+            const selectedYes = selection[question.key] === true;
+            const selectedNo = selection[question.key] === false;
+            const selectedNa = selection[question.key] === null || selection[question.key] === undefined;
+            return `
+              <li>
+                <strong>${question.label}</strong><br />
+                <label>
+                  <input type="radio" name="${question.key}" value="yes" ${selectedYes ? 'checked' : ''} /> Yes (${question.yesValue})
+                </label>
+                &nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="${question.key}" value="no" ${selectedNo ? 'checked' : ''} /> No (${question.noValue})
+                </label>
+                &nbsp;&nbsp;
+                <label>
+                  <input type="radio" name="${question.key}" value="na" ${selectedNa ? 'checked' : ''} /> N/A (${question.naValue})
+                </label>
+              </li>
+            `;
+          })
+          .join('');
+
+        const updateComputedValue = () => {
+          const answers = {
+            sensitiveDataInBackups: document.querySelector('input[name="sensitiveDataInBackups"]:checked')?.value === 'yes',
+            backupUnencrypted: document.querySelector('input[name="backupUnencrypted"]:checked')?.value === 'yes',
+            userControlBackups: (() => {
+              const value = document.querySelector('input[name="userControlBackups"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })(),
+            dataMinimization: (() => {
+              const value = document.querySelector('input[name="dataMinimization"]:checked')?.value;
+              if (value === 'yes') return true;
+              if (value === 'na') return null;
+              return false;
+            })(),
+            cloudBackup: document.querySelector('input[name="cloudBackup"]:checked')?.value === 'yes'
+          };
+
+          featureModalSelections[featureId] = answers;
+          const computed = getDataBackupsScore(answers);
+          scoreInput.value = computed;
+          scoreInput.disabled = true;
+          scoreValue.textContent = computed;
+        };
+
+        document.querySelectorAll('input[name="sensitiveDataInBackups"], input[name="backupUnencrypted"], input[name="userControlBackups"], input[name="dataMinimization"], input[name="cloudBackup"]').forEach((radio) => {
+          radio.addEventListener('change', updateComputedValue);
+        });
+
+        updateComputedValue();
+      }
+
+      function getRating(score) {
+        if (score >= 85) return { tag: 'Excellent', risk: 'Low', priority: 'Maintain posture', assessment: 'The app evaluated is highly mature, with strong governance and strong protection across the data lifecycle.' };
+        if (score >= 70) return { tag: 'Strong', risk: 'Low', priority: 'Improve retention', assessment: 'The app evaluated demonstrates solid privacy hygiene with good access controls, encryption, and operational monitoring.' };
+        if (score >= 55) return { tag: 'Moderate', risk: 'Moderate', priority: 'Tighten controls', assessment: 'The app evaluated has acceptable privacy maturity, but stronger controls around storage, consent, and third-party handling would reduce exposure.' };
+        if (score >= 35) return { tag: 'Needs work', risk: 'High', priority: 'Prioritize risk reduction', assessment: 'The app evaluated shows significant gaps that increase privacy risk. Consider addressing retention, access, and transparency practices first.' };
+        return { tag: 'Critical', risk: 'Critical', priority: 'Immediate action', assessment: 'The app evaluated requires urgent remediation across access, consent, and data handling practices.' };
+      }
+
+      function updateUI() {
+        const score = computeScore();
+        const rating = getRating(score);
+
+        const meterFill = document.getElementById('meterFill');
+        const scoreValue = document.getElementById('scoreValue');
+        const scoreTag = document.getElementById('scoreTag');
+        const assessmentText = document.getElementById('assessmentText');
+        const weightedScore = document.getElementById('weightedScore');
+        const riskLevel = document.getElementById('riskLevel');
+        const priorityLevel = document.getElementById('priorityLevel');
+
+        scoreValue.textContent = score;
+        scoreTag.textContent = rating.tag;
+        scoreTag.style.background = getTagColor(score);
+        scoreTag.style.color = score >= 70 ? '#10213a' : '#ffffff';
+        assessmentText.textContent = rating.assessment;
+        weightedScore.textContent = `${score}/100`;
+        riskLevel.textContent = rating.risk;
+        priorityLevel.textContent = rating.priority;
+        meterFill.style.width = `${score}%`;
+      }
+
+      function getTagColor(score) {
+        if (score >= 85) return 'rgba(20,184,166,0.18)';
+        if (score >= 70) return 'rgba(84, 201, 143, 0.18)';
+        if (score >= 55) return 'rgba(245,158,11,0.20)';
+        if (score >= 35) return 'rgba(249,115,22,0.18)';
+        return 'rgba(239,68,68,0.18)';
+      }
+
+      function getHistoryEntries() {
+        try {
+          return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function updateHistoryList() {
+        const historyList = document.getElementById('evaluationHistoryList');
+        if (!historyList) return;
+
+        const history = getHistoryEntries();
+        if (!history.length) {
+          historyList.innerHTML = '<li class="empty-state">No evaluations yet</li>';
+          renderPortfolioChart();
+          return;
+        }
+
+        // Group by app name to show all evaluators
+        const appGroups = {};
+        history.forEach((entry) => {
+          if (!appGroups[entry.appName]) {
+            appGroups[entry.appName] = [];
+          }
+          appGroups[entry.appName].push(entry);
+        });
+
+        historyList.innerHTML = Object.entries(appGroups)
+          .map(([appName, evaluations]) => {
+            // Entries are already most-recent-first within a group because
+            // persistCurrentApp() unshifts; sort defensively just in case.
+            const sorted = [...evaluations].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            const latestEval = sorted[0];
+            const hasMultiple = sorted.length > 1;
+            
+            // Calculate average score if multiple evaluations, otherwise use latest
+            let displayScore;
+            if (hasMultiple) {
+              const avgScore = sorted.reduce((sum, e) => sum + e.score, 0) / sorted.length;
+              displayScore = Math.round(avgScore * 10) / 10; // Round to 1 decimal place
+            } else {
+              displayScore = latestEval.score;
+            }
+            
+            const scoreColor = getScoreLevelColor(displayScore);
+            const visibleEvaluators = sorted.slice(0, 6);
+            const extraCount = sorted.length - visibleEvaluators.length;
+
+            // Each evaluator's badge is colored by THEIR OWN score for this app,
+            // not a flat neutral color, and shows that score inline.
+            const allEvaluatorsList = visibleEvaluators.map((e) => {
+              const badgeColor = getScoreLevelColor(e.score);
+              return `<span class="evaluator-badge" data-app-name="${escapeHtml(appName)}" data-user-name="${escapeHtml(e.userName || '')}" style="display: inline-flex; align-items: center; gap: 4px; background: ${badgeColor}; color: #fff; padding: 2px 8px 2px 10px; border-radius: 12px; font-size: 11px; margin-right: 4px; margin-bottom: 4px; cursor: pointer; font-weight: 600;">${escapeHtml(e.userName || 'Unknown')}<span style="background: rgba(255,255,255,0.3); border-radius: 8px; padding: 1px 6px;">${e.score}</span></span>`;
+            }).join('') + (extraCount > 0 ? `<span style="display: inline-block; color: #999; font-size: 11px; margin-left: 2px;">+${extraCount} more</span>` : '');
+
+            return `
+              <li class="history-item" data-app-name="${escapeHtml(appName)}" data-single-user="${hasMultiple ? '' : escapeHtml(latestEval.userName || '')}" style="margin-bottom: 12px; padding: 14px; border-left: 5px solid ${scoreColor}; background: linear-gradient(to right, rgba(255,255,255,0) 0%, #f9f9f9 20%); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                  <div>
+                    <strong style="font-size: 15px;">${escapeHtml(appName)}</strong>
+                    ${hasMultiple ? `<div style="font-size: 11px; color: #999; margin-top: 4px;">${sorted.length} evaluations</div>` : ''}
+                  </div>
+                  <div style="background: ${scoreColor}; color: white; padding: 6px 12px; border-radius: 14px; font-weight: bold; font-size: 14px; text-align: center;">${hasMultiple ? `Avg: ${displayScore}` : displayScore}</div>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Latest: <strong>${escapeHtml(latestEval.userName || 'Unknown')}</strong></div>
+                ${hasMultiple ? `
+                  <div style="margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 4px;">Evaluated by (color = their score):</div>
+                    ${allEvaluatorsList}
+                  </div>
+                  <div style="margin-top: 8px; font-size: 12px; color: #0066cc;"><a href="javascript:void(0)" class="view-all-link" data-app-name="${escapeHtml(appName)}">📊 View all ${sorted.length} evaluations</a></div>
+                ` : ''}
+              </li>
+            `;
+          })
+          .join('');
+
+        // Clicking an individual evaluator badge loads that exact person's evaluation.
+        document.querySelectorAll('.evaluator-badge').forEach((badge) => {
+          badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            loadAppEvaluation(badge.dataset.appName, badge.dataset.userName);
+          });
+        });
+
+        // Clicking "View all" opens the comparison modal.
+        document.querySelectorAll('.view-all-link').forEach((link) => {
+          link.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showAppComparison(link.dataset.appName);
+          });
+        });
+
+        // Clicking the card itself: if only one evaluator, load it directly;
+        // if multiple, open the comparison modal instead of guessing which one.
+        document.querySelectorAll('.history-item').forEach((item) => {
+          item.addEventListener('click', (e) => {
+            if (e.target.closest('.evaluator-badge') || e.target.closest('.view-all-link')) return;
+            const appName = item.dataset.appName;
+            const singleUser = item.dataset.singleUser;
+            if (singleUser) {
+              loadAppEvaluation(appName, singleUser);
+            } else {
+              showAppComparison(appName);
+            }
+          });
+        });
+      }
+
+      // Not-applicable features count as full marks (10); the underlying rating is kept
+      // so it comes back if the feature is switched back to applicable.
+      function getEffectiveFeatureScore(id) {
+        if (featureApplicability[id] === false) return 10;
+        return featureScores[id] ?? featureDefinitions[id].initial;
+      }
+
+      // Pure version so cloud records can be scored without touching UI state.
+      function computeScoreFor(scores, applicability) {
+        const ids = Object.keys(featureDefinitions);
+        const effective = (id) => {
+          if (applicability && applicability[id] === false) return 10;
+          const raw = scores ? scores[id] : undefined;
+          const num = Number(raw);
+          return (raw !== undefined && raw !== null && Number.isFinite(num)) ? num : featureDefinitions[id].initial;
+        };
+        const total = ids.reduce((sum, id) => sum + effective(id), 0);
+        const weightedTotal = ids.reduce((sum, id) => sum + (effective(id) * weights[id]), 0);
+        const totalWeight = ids.reduce((sum, id) => sum + weights[id], 0);
+        const meanScore = total / ids.length;
+        const weightedAverage = weightedTotal / totalWeight;
+        return Math.round(((meanScore + weightedAverage) / 2) * 10);
+      }
+
+      function computeScore() {
+        return computeScoreFor(featureScores, featureApplicability);
+      }
+
+      function renderFeatures() {
+        const grid = document.getElementById('featureGrid');
+        if (!grid) return;
+
+        grid.innerHTML = Object.entries(featureDefinitions)
+          .map(([featureId, feature]) => {
+            const isApplicable = featureApplicability[featureId] !== false;
+            const shownScore = getEffectiveFeatureScore(featureId);
+            return `
+              <article class="feature-card">
+                <div class="feature-header">
+                  <div>
+                    <label>${escapeHtml(feature.label)}</label>
+                    <small>${escapeHtml(feature.description)}</small>
+                  </div>
+                  <span class="feature-score" data-level="${getScoreLevel(shownScore)}" title="${isApplicable ? '' : 'Not applicable - counted as 10'}">${shownScore}</span>
+                </div>
+                <div class="feature-meta">
+                  <label for="featureStatus_${featureId}">Applicable</label>
+                  <select id="featureStatus_${featureId}" data-feature-id="${featureId}">
+                    <option value="true" ${isApplicable ? 'selected' : ''}>Yes</option>
+                    <option value="false" ${!isApplicable ? 'selected' : ''}>No</option>
+                  </select>
+                </div>
+                <button type="button" class="feature-button" data-feature-id="${featureId}" ${isApplicable ? '' : 'disabled title="Not applicable - scored 10 automatically"'}>${isApplicable ? 'Review rubric' : 'Not applicable (10)'}</button>
+              </article>
+            `;
+          })
+          .join('');
+
+        document.querySelectorAll('.feature-button').forEach((button) => {
+          button.addEventListener('click', () => openFeatureModal(button.dataset.featureId));
+        });
+
+        document.querySelectorAll('select[data-feature-id]').forEach((select) => {
+          select.addEventListener('change', (event) => {
+            const featureId = event.target.dataset.featureId;
+            featureApplicability[featureId] = event.target.value === 'true';
+            updateUI();
+            persistCurrentApp();
+            renderFeatures();
+          });
+        });
+      }
+
+      function persistCurrentApp() {
+        if (!currentAppName) return;
+        const payload = {
+          appName: currentAppName,
+          userName: currentUserName,
+          featureScores,
+          featureApplicability,
+          score: computeScore(),
+          updatedAt: new Date().toISOString()
+        };
+
+        try {
+          localStorage.setItem(getAppStorageKey(currentAppName, currentUserName), JSON.stringify(payload));
+        } catch (error) {
+          console.warn('Could not save local evaluation state', error);
+        }
+
+        const history = getHistoryEntries();
+        const item = {
+          appName: currentAppName,
+          userName: currentUserName,
+          score: computeScore(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const nextHistory = [item, ...history.filter((entry) => !((entry.appName || '').trim().toLowerCase() === currentAppName.trim().toLowerCase() && (entry.userName || '').trim().toLowerCase() === currentUserName.trim().toLowerCase()))];
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+        updateHistoryList();
+      }
+
+      function renderPortfolioChart() {
+        const list = document.getElementById('evaluationHistoryList');
+        if (!list) return;
+        const history = getHistoryEntries();
+        if (!history.length) {
+          list.innerHTML = '<li class="empty-state">No evaluations yet</li>';
+          return;
+        }
+        // Keep it lightweight: just show a summary list.
+        updateHistoryList();
+      }
+
+      function loadAppEvaluation(appName, userName) {
+        currentAppName = appName;
+        currentUserName = userName || '';
+        evaluationCompleted = false;
+        featureScores = { ...defaultFeatureScores };
+        featureApplicability = { ...defaultFeatureApplicability };
+        try {
+          const saved = localStorage.getItem(getAppStorageKey(appName, userName));
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            featureScores = { ...defaultFeatureScores, ...(parsed.featureScores || {}) };
+            featureApplicability = { ...defaultFeatureApplicability, ...(parsed.featureApplicability || {}) };
+          }
+        } catch (error) {
+          console.warn('Could not load saved evaluation', error);
+        }
+        document.getElementById('userNameInput').value = currentUserName;
+        document.getElementById('appNameInput').value = appName;
+        document.getElementById('currentAppNameTitle').textContent = appName;
+        document.getElementById('currentAppNameBadge').textContent = appName;
+        document.getElementById('appStartScreen').style.display = 'none';
+        document.getElementById('evaluationScreen').style.display = 'block';
+        document.getElementById('shareEvaluationBtn').disabled = true;
+        renderFeatures();
+        updateUI();
+      }
+
+      function startEvaluation() {
+        const userName = document.getElementById('userNameInput')?.value.trim();
+        const appName = document.getElementById('appNameInput')?.value.trim();
+
+        if (!userName || !appName) {
+          alert('Please enter both your name and the app name before starting.');
+          return;
+        }
+
+        const existing = getHistoryEntries();
+        const sameApp = existing.find((e) => (e.appName || '').trim().toLowerCase() === appName.toLowerCase());
+        const sameAppUser = existing.find((e) => (e.appName || '').trim().toLowerCase() === appName.toLowerCase() && (e.userName || '').trim().toLowerCase() === userName.toLowerCase());
+        currentAppName = sameApp ? sameApp.appName : appName;
+        currentUserName = sameAppUser ? sameAppUser.userName : userName;
+        evaluationCompleted = false;
+        featureScores = { ...defaultFeatureScores };
+        featureApplicability = { ...defaultFeatureApplicability };
+        try {
+          const saved = localStorage.getItem(getAppStorageKey(appName, userName));
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            featureScores = { ...defaultFeatureScores, ...(parsed.featureScores || {}) };
+            featureApplicability = { ...defaultFeatureApplicability, ...(parsed.featureApplicability || {}) };
+          }
+        } catch (error) {
+          console.warn('Could not restore saved evaluation', error);
+        }
+
+        document.getElementById('appStartScreen').style.display = 'none';
+        document.getElementById('evaluationScreen').style.display = 'block';
+        document.getElementById('currentAppNameTitle').textContent = currentAppName;
+        document.getElementById('currentAppNameBadge').textContent = currentAppName;
+        document.getElementById('shareEvaluationBtn').disabled = true;
+        document.getElementById('userNameInput').value = currentUserName;
+        document.getElementById('appNameInput').value = currentAppName;
+
+        renderFeatures();
+        updateUI();
+      }
+
+      function openFeatureModal(featureId) {
+        if (!featureDefinitions[featureId]) return;
+        const modal = document.getElementById('featureModal');
+        const scoreInput = document.getElementById('modalScore');
+        const scoreValue = document.getElementById('modalScoreValue');
+
+        document.getElementById('modalTitle').textContent = featureDefinitions[featureId].label;
+        modal.dataset.featureId = featureId;
+
+        const renderer = {
+          pushNotificationsScreens: renderPushNotificationQuestions,
+          onDeviceVsCloudPrediction: renderOnDeviceVsCloudPredictionQuestions,
+          ageAppropriatePrivacy: renderAgeAppropriatePrivacyQuestions,
+          dataBackups: renderDataBackupQuestions
+        }[featureId];
+
+        if (renderer) {
+          renderer(featureId);
+        } else {
+          document.getElementById('modalRubricList').innerHTML = `<li>${escapeHtml(featureDefinitions[featureId].description)}</li>`;
+          scoreInput.value = featureScores[featureId] ?? featureDefinitions[featureId].initial;
+          scoreInput.disabled = false;
+          scoreValue.textContent = scoreInput.value;
+          scoreInput.oninput = () => { scoreValue.textContent = scoreInput.value; };
+        }
+
+        modal.removeAttribute('inert');
+        modal.setAttribute('aria-hidden', 'false');
+        modal.style.display = 'flex';
+      }
+
+      function closeFeatureModal() {
+        const modal = document.getElementById('featureModal');
+        modal.setAttribute('inert', '');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.style.display = 'none';
+      }
+
+      function initializeAppEvents() {
+        const startBtn = document.getElementById('startEvaluationBtn');
+        if (startBtn) startBtn.addEventListener('click', startEvaluation);
+
+        const backBtn = document.getElementById('backToAppInputBtn');
+        if (backBtn) {
+          backBtn.addEventListener('click', () => {
+            document.getElementById('evaluationScreen').style.display = 'none';
+            document.getElementById('appStartScreen').style.display = 'flex';
+            document.getElementById('shareEvaluationBtn').disabled = true;
+          });
+        }
+
+        const completeBtn = document.getElementById('completeEvaluationBtn');
+        if (completeBtn) completeBtn.addEventListener('click', completeEvaluation);
+
+        const shareBtn = document.getElementById('shareEvaluationBtn');
+        if (shareBtn) shareBtn.addEventListener('click', openShareModal);
+
+        const confirmShareBtn = document.getElementById('confirmShareBtn');
+        if (confirmShareBtn) confirmShareBtn.addEventListener('click', shareEvaluationToCloud);
+
+        const cancelShareBtn = document.getElementById('cancelShareModal');
+        if (cancelShareBtn) cancelShareBtn.addEventListener('click', closeShareModal);
+
+        const closeShareBtn = document.getElementById('closeShareModal');
+        if (closeShareBtn) closeShareBtn.addEventListener('click', closeShareModal);
+
+        const cancelModalBtn = document.getElementById('cancelModal');
+        if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeFeatureModal);
+
+        const closeModalBtn = document.getElementById('closeModal');
+        if (closeModalBtn) closeModalBtn.addEventListener('click', closeFeatureModal);
+
+        const saveFeatureBtn = document.getElementById('saveFeatureScore');
+        if (saveFeatureBtn) {
+          saveFeatureBtn.addEventListener('click', () => {
+            const scoreInput = document.getElementById('modalScore');
+            const activeFeatureId = document.getElementById('featureModal').dataset.featureId;
+            if (!activeFeatureId || !featureDefinitions[activeFeatureId]) {
+              closeFeatureModal();
+              return;
+            }
+            const newScore = Number(scoreInput.value);
+            if (!Number.isNaN(newScore)) {
+              featureScores[activeFeatureId] = newScore;
+              featureApplicability[activeFeatureId] = true;
+            }
+            closeFeatureModal();
+            renderFeatures();
+            updateUI();
+            persistCurrentApp();
+            // A changed rating invalidates a previous "complete" state until re-completed
+            evaluationCompleted = false;
+            const shareBtn = document.getElementById('shareEvaluationBtn');
+            if (shareBtn) shareBtn.disabled = true;
+          });
+        }
+
+        const refreshSharedBtn = document.getElementById('refreshSharedBtn');
+        if (refreshSharedBtn) refreshSharedBtn.addEventListener('click', () => {
+          initializeFirebaseForReading();
+        });
+
+        const sharedList = document.getElementById('sharedEvaluationsList');
+        if (sharedList) sharedList.addEventListener('click', handleSharedListClick);
+
+        const viewToggle = document.getElementById('sharedViewToggle');
+        if (viewToggle) {
+          viewToggle.addEventListener('click', (ev) => {
+            const btn = ev.target.closest('button[data-view]');
+            if (btn) setSharedView(btn.dataset.view);
+          });
+        }
+
+        const startTabs = document.querySelector('.start-tabs');
+        if (startTabs) startTabs.addEventListener('click', (ev) => {
+          const btn = ev.target.closest('button[data-tab]');
+          if (btn) setStartTab(btn.dataset.tab);
+        });
+        const dlBtn = document.getElementById('downloadExportBtn');
+        if (dlBtn) dlBtn.addEventListener('click', downloadEvaluationsExport);
+        const refreshExportBtn = document.getElementById('refreshExportBtn');
+        if (refreshExportBtn) refreshExportBtn.addEventListener('click', () => { refreshExportSummary().catch(() => {}); });
+
+        initializeFirebaseForReading();
+        updateHistoryList();
+      }
+
+      initializeAppEvents();
+    </script>
+  </body>
+</html>
