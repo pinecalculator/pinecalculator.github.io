@@ -914,6 +914,7 @@
       .chart-key .key-dot,
       .chart-key .key-mean { display: inline-block; vertical-align: -2px; margin-right: 6px; }
       .chart-key .key-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--indigo); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(16,33,58,0.3); }
+      .chart-key .key-sd { display: inline-block; vertical-align: -2px; margin-right: 6px; width: 22px; height: 10px; border-radius: 999px; background: rgba(79, 70, 229, 0.28); border: 1px solid rgba(79, 70, 229, 0.55); }
       .chart-key .key-mean { width: 3px; height: 14px; border-radius: 2px; background: var(--navy); }
 
       .chart-app-row {
@@ -965,6 +966,15 @@
       .dotplot .dot[data-band="high"] { background: var(--score-high); }
       .dotplot .dot[data-band="moderate"] { background: var(--score-moderate); }
       .dotplot .dot[data-band="low"] { background: var(--score-low); }
+
+      .dotplot .dot-sd {
+        position: absolute;
+        top: 2px;
+        bottom: 2px;
+        border-radius: 999px;
+        background: rgba(79, 70, 229, 0.28);
+        border: 1px solid rgba(79, 70, 229, 0.55);
+      }
 
       .dotplot .dot-mean {
         position: absolute;
@@ -1737,9 +1747,15 @@
       function renderDotPlot(g) {
         const dots = g.evaluations.map((e) => `<span class="dot" data-band="${getScoreBand(e.score)}" style="left:${clampPct(e.score)}%" title="${escapeHtml(e.userName || 'Unknown')}: ${formatScore(e.score)}"></span>`).join('');
         const n = g.evaluations.length;
+        let sdBand = '';
+        if (Number.isFinite(g.sd)) {
+          const lo = clampPct(g.average - g.sd);
+          const hi = clampPct(g.average + g.sd);
+          sdBand = `<span class="dot-sd" style="left:${lo}%;width:${hi - lo}%" title="Mean ± 1 SD: ${formatScore(lo)} to ${formatScore(hi)}"></span>`;
+        }
         return `
-          <div class="dotplot" role="img" aria-label="${escapeHtml(g.appName)}: ${n} evaluation${n === 1 ? '' : 's'}, mean ${formatScore(g.average)}">
-            <div class="dotplot-track">${dots}<span class="dot-mean" style="left:${clampPct(g.average)}%" title="Mean: ${formatScore(g.average)}"></span></div>
+          <div class="dotplot" role="img" aria-label="${escapeHtml(g.appName)}: ${n} evaluation${n === 1 ? '' : 's'}, mean ${formatScore(g.average)}${Number.isFinite(g.sd) ? ', standard deviation ' + formatScore(g.sd) : ''}">
+            <div class="dotplot-track">${sdBand}${dots}<span class="dot-mean" style="left:${clampPct(g.average)}%" title="Mean: ${formatScore(g.average)}"></span></div>
             <div class="dotplot-axis" aria-hidden="true">
               <span style="left:0%">0</span><span style="left:50%">50</span><span style="left:80%">80</span><span style="left:100%">100</span>
             </div>
@@ -1790,7 +1806,7 @@
               </div>
             </div>
             <div class="shared-bar" aria-hidden="true"><span style="width:${clampPct(g.average)}%"></span></div>
-            ${n > 1 ? `<div class="shared-dotplot"><div class="shared-dotplot-label">How each user scored it (bar = mean ${formatScore(g.average)}):</div>${renderDotPlot(g)}</div>` : ''}
+            ${n > 1 ? `<div class="shared-dotplot"><div class="shared-dotplot-label">How each user scored it (bar = mean, shaded = ±1 SD; mean ${formatScore(g.average)}):</div>${renderDotPlot(g)}</div>` : ''}
             <div class="shared-evaluators">
               <div class="shared-evaluators-label">${n > 1 ? 'Evaluated by (color = their score):' : 'Evaluated by:'}</div>
               ${chips}
@@ -1829,6 +1845,7 @@
           <div class="chart-key" aria-label="Chart key">
             <span><i class="key-dot"></i>One user's score</span>
             <span><i class="key-mean"></i>Mean score for the app</span>
+            <span><i class="key-sd"></i>Mean ± 1 SD</span>
           </div>
           <div class="cat-summary-chart" aria-label="Mean score by category">${summary}</div>
           ${sections}`;
@@ -1920,7 +1937,7 @@
                 <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}</span>
               </div>
               <div style="padding: 14px 0 6px;">
-                <div class="shared-dotplot-label">Spread of scores (bar = mean)</div>
+                <div class="shared-dotplot-label">Spread of scores (bar = mean, shaded = ±1 SD)</div>
                 ${renderDotPlot(group)}
               </div>
               ${rows}
