@@ -1051,6 +1051,27 @@
       .export-status.error { color: var(--score-low); }
       .export-status.ok { color: var(--score-high); }
       .export-howto { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+
+      /* ---- Weakest features tab ---- */
+      .weak-card { padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); border-left: 5px solid var(--band, #cbd5e1); border-radius: 12px; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); }
+      .weak-card[data-band="high"] { --band: var(--score-high); }
+      .weak-card[data-band="moderate"] { --band: var(--score-moderate); }
+      .weak-card[data-band="low"] { --band: var(--score-low); }
+      .weak-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+      .weak-title { font-size: 15px; font-weight: 800; color: var(--navy); }
+      .weak-sub { margin-top: 4px; font-size: 11px; color: var(--muted); }
+      .weak-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+      .weak-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #f8fafc; border: 1px solid var(--border); }
+      .weak-name { font-weight: 700; font-size: 0.84rem; color: var(--navy); }
+      .weak-name small { display: block; font-weight: 600; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+      .weak-score { min-width: 40px; text-align: center; padding: 4px 8px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; color: #fff; }
+      .weak-score[data-level="low"] { background: var(--score-low); }
+      .weak-score[data-level="moderate"] { background: var(--score-moderate); color: var(--navy); }
+      .weak-score[data-level="high"] { background: var(--score-high); }
+      .weak-app { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); }
+      .weak-app-title { font-size: 12px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
+      .weak-app-title small { font-weight: 600; color: var(--muted); margin-left: 6px; }
+      .weak-scroll { max-height: 520px; overflow-y: auto; padding-right: 2px; }
     </style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🌲</text></svg>">
   </head>
@@ -1070,6 +1091,7 @@
         <div class="start-tabs" role="tablist" aria-label="Start screen sections">
           <button type="button" role="tab" id="tabBtnEvaluate" data-tab="evaluate" class="active" aria-selected="true" aria-controls="tabPanelEvaluate">Evaluate</button>
           <button type="button" role="tab" id="tabBtnExport" data-tab="export" aria-selected="false" aria-controls="tabPanelExport">Export data</button>
+          <button type="button" role="tab" id="tabBtnWeakest" data-tab="weakest" aria-selected="false" aria-controls="tabPanelWeakest">Weakest features</button>
         </div>
 
         <div id="tabPanelEvaluate" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnEvaluate">
@@ -1103,6 +1125,17 @@
           <h3>Your recent evaluations</h3>
           <ul id="evaluationHistoryList" class="history-list"></ul>
         </div>
+        </div>
+
+        <div id="tabPanelWeakest" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnWeakest" hidden>
+          <h3 style="margin:0 0 8px;color:var(--navy);">Weakest features</h3>
+          <p style="margin:0 0 6px;color:var(--muted);font-size:0.9rem;line-height:1.5;">The 3 lowest-rated features. Not-applicable features count as 10, so they never appear here.</p>
+          <div class="view-toggle" id="weakViewToggle" role="group" aria-label="Weakest features view">
+            <button type="button" data-view="evaluation" aria-pressed="false">🧾 Per evaluation</button>
+            <button type="button" data-view="app" class="active" aria-pressed="true">📱 Per app</button>
+            <button type="button" data-view="category" aria-pressed="false">🧩 Per category</button>
+          </div>
+          <div id="weakestList" class="weak-scroll" style="margin-top:12px;"></div>
         </div>
 
         <div id="tabPanelExport" class="tab-panel export-panel" role="tabpanel" aria-labelledby="tabBtnExport" hidden>
@@ -1622,8 +1655,10 @@
           btn.setAttribute('aria-selected', String(on));
         });
         document.getElementById('tabPanelEvaluate').hidden = tab !== 'evaluate';
+        document.getElementById('tabPanelWeakest').hidden = tab !== 'weakest';
         document.getElementById('tabPanelExport').hidden = tab !== 'export';
         if (tab === 'export') refreshExportSummary();
+        if (tab === 'weakest') renderWeakestFeatures();
       }
 
       function setExportStatus(text, kind) {
@@ -1855,7 +1890,122 @@
       }
 
       // Render shared evaluations in the selected view: all apps, grouped by emoji category, or charts.
+
+      // ---- Weakest features tab ----------------------------------------------
+      let weakView = 'app'; // 'evaluation' | 'app' | 'category'
+
+      function setWeakView(view) {
+        weakView = view;
+        document.querySelectorAll('#weakViewToggle button').forEach((btn) => {
+          const on = btn.dataset.view === view;
+          btn.classList.toggle('active', on);
+          btn.setAttribute('aria-pressed', String(on));
+        });
+        renderWeakestFeatures();
+      }
+
+      // Rating for one feature in one cloud record; N/A counts as 10.
+      function effectiveFeatureScoreFor(evaluation, id) {
+        if (evaluation.featureApplicability && evaluation.featureApplicability[id] === false) return 10;
+        const raw = evaluation.featureScores ? Number(evaluation.featureScores[id]) : NaN;
+        return Number.isFinite(raw) ? raw : featureDefinitions[id].initial;
+      }
+
+      const round1 = (n) => Math.round(n * 10) / 10;
+
+      // Per-feature mean across an app's evaluators.
+      function appFeatureScore(g, id) {
+        return round1(g.evaluations.reduce((s, e) => s + effectiveFeatureScoreFor(e, id), 0) / g.evaluations.length);
+      }
+
+      // Lowest n features; ties go to the higher-weighted feature.
+      function getWorstFeatures(scoreFn, n = 3) {
+        return Object.keys(featureDefinitions)
+          .map((id) => ({ id, score: scoreFn(id) }))
+          .sort((a, b) => a.score - b.score || (weights[b.id] || 0) - (weights[a.id] || 0))
+          .slice(0, n);
+      }
+
+      function weakListHtml(worst) {
+        return `<ul class="weak-list">${worst.map((f) => `
+          <li class="weak-row">
+            <span class="weak-name">${escapeHtml(featureDefinitions[f.id].label)}<small>Weight ${weights[f.id] || 0}%</small></span>
+            <span class="weak-score" data-level="${getScoreLevel(f.score)}">${formatScore(f.score)}</span>
+          </li>`).join('')}</ul>`;
+      }
+
+      function weakCardHtml({ emoji, title, sub, pillLabel, pillScore, body }) {
+        const band = getScoreBand(pillScore);
+        return `
+          <div class="weak-card" data-band="${band}">
+            <div class="weak-head">
+              <div>
+                <div class="weak-title"><span class="app-emoji" aria-hidden="true">${emoji}</span>${escapeHtml(title)}</div>
+                <div class="weak-sub">${sub}</div>
+              </div>
+              <div class="score-pill" data-band="${band}"><strong>${pillLabel}${formatScore(pillScore)}</strong><small>${SCORE_LABELS[band]}</small></div>
+            </div>
+            ${body}
+          </div>`;
+      }
+
+      function renderWeakestFeatures() {
+        const container = document.getElementById('weakestList');
+        if (!container) return;
+        const groups = groupSharedByApp();
+        if (!groups.length) {
+          container.innerHTML = '<div class="empty-state">No shared evaluations yet</div>';
+          return;
+        }
+
+        if (weakView === 'evaluation') {
+          // One card per evaluator's evaluation of an app.
+          const rows = [];
+          groups.forEach((g) => g.evaluations.forEach((e) => rows.push({ g, e })));
+          rows.sort((a, b) => a.e.score - b.e.score);
+          container.innerHTML = rows.map(({ g, e }) => weakCardHtml({
+            emoji: getAppEmoji(g.appName),
+            title: g.appName,
+            sub: `Evaluated by <strong>${escapeHtml(e.userName || 'Unknown')}</strong>${e.timestamp ? ' · ' + new Date(e.timestamp).toLocaleDateString() : ''}`,
+            pillLabel: '',
+            pillScore: e.score,
+            body: weakListHtml(getWorstFeatures((id) => effectiveFeatureScoreFor(e, id)))
+          })).join('');
+        } else if (weakView === 'app') {
+          // Mean across evaluators, weakest apps first.
+          container.innerHTML = [...groups].sort((a, b) => a.average - b.average).map((g) => {
+            const n = g.evaluations.length;
+            return weakCardHtml({
+              emoji: getAppEmoji(g.appName),
+              title: g.appName,
+              sub: `${n} evaluation${n === 1 ? '' : 's'}${n > 1 ? ' · feature scores are averages' : ''}`,
+              pillLabel: n > 1 ? 'Avg ' : '',
+              pillScore: g.average,
+              body: weakListHtml(getWorstFeatures((id) => appFeatureScore(g, id)))
+            });
+          }).join('');
+        } else {
+          // Category score for a feature = mean of its apps' averages (same rule as the category mean).
+          container.innerHTML = groupByCategory(groups).sort((a, b) => a.mean - b.mean).map((c) => {
+            const catScore = (id) => round1(c.apps.reduce((s, a) => s + appFeatureScore(a, id), 0) / c.apps.length);
+            const perApp = c.apps.map((a) => `
+              <div class="weak-app">
+                <div class="weak-app-title">${escapeHtml(a.appName)}<small>weakest: ${getWorstFeatures((id) => appFeatureScore(a, id), 1).map((f) => escapeHtml(featureDefinitions[f.id].label) + ' (' + formatScore(f.score) + ')').join('')}</small></div>
+              </div>`).join('');
+            return weakCardHtml({
+              emoji: c.cat.emoji,
+              title: c.cat.label,
+              sub: `${c.apps.length} app${c.apps.length === 1 ? '' : 's'} · ${c.evalCount} evaluation${c.evalCount === 1 ? '' : 's'} · feature scores are means of app averages`,
+              pillLabel: 'Mean ',
+              pillScore: c.mean,
+              body: weakListHtml(getWorstFeatures(catScore)) + perApp
+            });
+          }).join('');
+        }
+      }
+
       function renderSharedEvaluations() {
+        renderWeakestFeatures();
         const container = document.getElementById('sharedEvaluationsList');
         if (!container) return;
 
@@ -3082,6 +3232,12 @@
             if (btn) setSharedView(btn.dataset.view);
           });
         }
+
+        const weakToggle = document.getElementById('weakViewToggle');
+        if (weakToggle) weakToggle.addEventListener('click', (ev) => {
+          const btn = ev.target.closest('button[data-view]');
+          if (btn) setWeakView(btn.dataset.view);
+        });
 
         const startTabs = document.querySelector('.start-tabs');
         if (startTabs) startTabs.addEventListener('click', (ev) => {
