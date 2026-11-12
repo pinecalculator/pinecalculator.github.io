@@ -715,7 +715,7 @@
       .score-pill[data-band="moderate"] { background: var(--score-moderate); color: #10213a; }
       .score-pill[data-band="low"] { background: var(--score-low); color: #ffffff; }
 
-      .score-pills { display: flex; gap: 8px; align-items: flex-start; flex-shrink: 0; }
+      .score-pills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; align-items: flex-start; flex-shrink: 0; max-width: 100%; }
       .sd-pill {
         display: inline-flex; flex-direction: column; align-items: center;
         min-width: 64px; padding: 6px 12px; border-radius: 14px; line-height: 1.2;
@@ -725,6 +725,11 @@
       .sd-pill strong { font-size: 0.95rem; }
       .sd-pill small { font-size: 0.66rem; font-weight: 700; opacity: 0.8; }
       .chart-app-row .sd-pill { min-width: 56px; padding: 4px 10px; }
+
+      .reliability-card { margin: 12px 0 16px; padding: 14px 16px; border-radius: 16px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); }
+      .reliability-title { font-weight: 800; color: var(--navy); margin-bottom: 8px; }
+      .reliability-stats { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+      .reliability-note { margin-top: 8px; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
 
       .shared-card {
         padding: 14px;
@@ -1625,6 +1630,149 @@
         return krippendorffAlpha(units);
       }
 
+      // ICC(2,k): two-way random effects, absolute agreement, average of k evaluators.
+      // `rows` = targets (features), each an array of k ratings (one per evaluator).
+      function iccTwoWayRandomK(rows) {
+        const n = rows.length;
+        const k = n ? rows[0].length : 0;
+        if (n < 2 || k < 2) return null;
+        const all = rows.flat();
+        const grand = all.reduce((a, v) => a + v, 0) / all.length;
+        const rowMeans = rows.map((r) => r.reduce((a, v) => a + v, 0) / k);
+        const colMeans = Array.from({ length: k }, (_, j) => rows.reduce((a, r) => a + r[j], 0) / n);
+        const ssr = k * rowMeans.reduce((a, m) => a + (m - grand) ** 2, 0);
+        const ssc = n * colMeans.reduce((a, m) => a + (m - grand) ** 2, 0);
+        const sst = all.reduce((a, v) => a + (v - grand) ** 2, 0);
+        const sse = Math.max(0, sst - ssr - ssc);
+        const msr = ssr / (n - 1);
+        const msc = ssc / (k - 1);
+        const mse = sse / ((n - 1) * (k - 1));
+        const denom = msr + (msc - mse) / n;
+        if (!(denom > 0)) return null;
+        return Math.round(((msr - mse) / denom) * 100) / 100;
+      }
+
+      // Features rated as applicable by every evaluator form the targets x evaluators matrix.
+      function groupIcc(evaluations) {
+        if (!evaluations || evaluations.length < 2) return null;
+        const rows = [];
+        Object.keys(featureDefinitions).forEach((id) => {
+          if (evaluations.some((e) => e.featureApplicability && e.featureApplicability[id] === false)) return;
+          rows.push(evaluations.map((e) => {
+            const raw = e.featureScores ? e.featureScores[id] : undefined;
+            const num = Number(raw);
+            return (raw !== undefined && raw !== null && Number.isFinite(num)) ? num : featureDefinitions[id].initial;
+          }));
+        });
+        return iccTwoWayRandomK(rows);
+      }
+
+      function iccPill(icc, n) {
+        const has = Number.isFinite(icc);
+        const tip = has
+          ? 'ICC(2,k): two-way random effects, absolute agreement, average of ' + n + ' evaluators, over features all evaluators rated as applicable. 0.90+ excellent, 0.75-0.90 good, 0.50-0.75 moderate, below 0.50 poor.'
+          : 'Needs at least 2 evaluators and 2 features rated applicable by all, with varied ratings';
+        return `<div class="sd-pill" title="${escapeHtml(tip)}"><strong>ICC ${has ? icc.toFixed(2) : '–'}</strong><small>reliability</small></div>`;
+      }
+
+      // Pooled reliability across every app that has 2+ evaluations.
+      // alpha: all app x feature units pooled (N/A excluded).
+      // ICC(2,k): total scores on the largest apps x evaluators block that has no gaps.
+      function overallReliability(groups) {
+        const multi = groups.filter((g) => g.evaluations.length >= 2);
+        // Units per app, so the bootstrap can resample whole apps.
+        const appUnits = multi.map((g) => Object.keys(featureDefinitions).map((id) => {
+          const vals = [];
+          g.evaluations.forEach((e) => {
+            if (e.featureApplicability && e.featureApplicability[id] === false) return;
+            const raw = e.featureScores ? e.featureScores[id] : undefined;
+            const num = Number(raw);
+            vals.push((raw !== undefined && raw !== null && Number.isFinite(num)) ? num : featureDefinitions[id].initial);
+          });
+          return vals;
+        }));
+        const units = appUnits.flat();
+        const alpha = krippendorffAlpha(units);
+
+        const counts = new Map();
+        multi.forEach((g) => g.evaluations.forEach((e) => {
+          const u = normalizeKey(e.userName);
+          if (u) counts.set(u, (counts.get(u) || 0) + 1);
+        }));
+        const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+        let best = null;
+        for (let k = 2; k <= ranked.length; k++) {
+          const team = ranked.slice(0, k);
+          const apps = multi.filter((g) => team.every((u) => g.evaluations.some((e) => normalizeKey(e.userName) === u)));
+          if (apps.length < 2) continue;
+          if (!best || apps.length * k > best.apps.length * best.k) best = { k, team, apps };
+        }
+        let icc = null, iccRows = null;
+        if (best) {
+          iccRows = best.apps.map((g) => best.team.map((u) => g.evaluations.find((e) => normalizeKey(e.userName) === u).score));
+          icc = iccTwoWayRandomK(iccRows);
+        }
+
+        // Percentile bootstrap (1,000 resamples of apps, fixed seed so the interval is stable).
+        const B = 1000;
+        const rand = seededRandom(20260101);
+        const resample = (arr) => arr.map(() => arr[Math.floor(rand() * arr.length)]);
+        let alphaCI = null, iccCI = null;
+        if (appUnits.length >= 3) {
+          const out = [];
+          for (let b = 0; b < B; b++) out.push(krippendorffAlpha(resample(appUnits).flat()));
+          alphaCI = percentileCI(out);
+        }
+        if (iccRows && iccRows.length >= 3) {
+          const out = [];
+          for (let b = 0; b < B; b++) out.push(iccTwoWayRandomK(resample(iccRows)));
+          iccCI = percentileCI(out);
+        }
+        return { alpha, icc, alphaCI, iccCI, nApps: multi.length, nUnits: units.filter((u) => u.length >= 2).length, block: best ? { apps: best.apps.length, k: best.k } : null };
+      }
+
+      function seededRandom(seed) {
+        let a = seed >>> 0;
+        return function () {
+          a = (a + 0x6D2B79F5) >>> 0;
+          let t = a;
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function percentileCI(values) {
+        const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+        if (v.length < 100) return null;
+        const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.floor(p * (v.length - 1))))];
+        return [q(0.025), q(0.975)];
+      }
+
+      function iccLabel(x) { return x >= 0.9 ? 'excellent' : x >= 0.75 ? 'good' : x >= 0.5 ? 'moderate' : 'poor'; }
+      function alphaLabel(x) { return x >= 0.8 ? 'reliable' : x >= 0.667 ? 'tentative' : 'low'; }
+
+      function renderReliabilityCard(groups) {
+        const r = overallReliability(groups);
+        if (!Number.isFinite(r.icc) && !Number.isFinite(r.alpha)) {
+          return '<div class="reliability-card"><div class="reliability-title">Overall evaluator reliability</div><div class="reliability-note">Needs at least 2 evaluators scoring the same apps.</div></div>';
+        }
+        const pill = (label, val, word, tip, ci) => `<div class="sd-pill" title="${escapeHtml(tip)}"><strong>${label} ${Number.isFinite(val) ? val.toFixed(2) : '–'}</strong><small>${Number.isFinite(val) ? word : 'n/a'}</small>${ci ? `<small>95% CI ${ci[0].toFixed(2)} to ${ci[1].toFixed(2)}</small>` : ''}</div>`;
+        const note = [
+          r.block ? `ICC(2,k) on total scores: ${r.block.apps} apps × ${r.block.k} evaluators who all rated them.` : '',
+          `α pooled across ${r.nUnits} app-feature ratings from ${r.nApps} apps (N/A excluded).`,
+          (r.iccCI || r.alphaCI) ? '95% CIs: percentile bootstrap over apps (1,000 resamples); shown when 3+ apps are available.' : 'Add more apps (3+) to see bootstrap 95% CIs.'
+        ].filter(Boolean).join(' ');
+        return `<div class="reliability-card">
+          <div class="reliability-title">Overall evaluator reliability (all apps)</div>
+          <div class="reliability-stats">
+            ${pill('ICC(2,k)', r.icc, Number.isFinite(r.icc) ? iccLabel(r.icc) : '', 'Two-way random effects, absolute agreement, average of evaluators. 0.90+ excellent, 0.75-0.90 good, 0.50-0.75 moderate, below 0.50 poor.', r.iccCI)}
+            ${pill('α', r.alpha, Number.isFinite(r.alpha) ? alphaLabel(r.alpha) : '', "Krippendorff's alpha (interval). 0.80+ reliable, 0.67-0.80 tentative, below 0.67 low.", r.alphaCI)}
+          </div>
+          <div class="reliability-note">${escapeHtml(note)}</div>
+        </div>`;
+      }
+
       function alphaPill(alpha, n) {
         const has = Number.isFinite(alpha);
         const tip = has
@@ -1655,7 +1803,8 @@
               latest: evaluations[0],
               average: Math.round(average * 10) / 10,
               sd: stdDev(evaluations.map((e) => e.score)),
-              alpha: groupAlpha(evaluations)
+              alpha: groupAlpha(evaluations),
+              icc: groupIcc(evaluations)
             };
           })
           .sort((a, b) => (b.latest.timestamp || 0) - (a.latest.timestamp || 0));
@@ -1883,7 +2032,7 @@
                   <strong>${n > 1 ? 'Avg ' : ''}${formatScore(g.average)}</strong>
                   <small>${SCORE_LABELS[band]}</small>
                 </div>
-                ${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}
+                ${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}${iccPill(g.icc, n)}
               </div>
             </div>
             <div class="shared-bar" aria-hidden="true"><span style="width:${clampPct(g.average)}%"></span></div>
@@ -1903,7 +2052,7 @@
           <button type="button" class="chart-app-row" data-app-key="${escapeHtml(g.key)}" data-count="${n}" data-single-user="${n === 1 ? escapeHtml(g.latest.userName || '') : ''}">
             <div class="chart-app-name"><span class="app-emoji" aria-hidden="true">${getAppEmoji(g.appName)}</span>${escapeHtml(g.appName)}<small>${n} evaluation${n === 1 ? '' : 's'}</small></div>
             ${renderDotPlot(g)}
-            <div class="score-pills"><div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}</div>
+            <div class="score-pills"><div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}${iccPill(g.icc, n)}</div>
           </button>`;
       }
 
@@ -1923,11 +2072,13 @@
           </div>`).join('');
 
         return `
+          ${renderReliabilityCard(groups)}
           <div class="chart-key" aria-label="Chart key">
             <span><i class="key-dot"></i>One user's score</span>
             <span><i class="key-mean"></i>Mean score for the app</span>
             <span><i class="key-sd"></i>Mean ± 1 SD</span>
             <span><b>α</b> Krippendorff's alpha: evaluator agreement (0.80+ reliable)</span>
+            <span><b>ICC</b> ICC(2,k): reliability of the average of evaluators (0.75+ good)</span>
           </div>
           <div class="cat-summary-chart" aria-label="Mean score by category">${summary}</div>
           ${sections}`;
@@ -2130,7 +2281,7 @@
             <div class="modal-body" style="max-height: 420px; overflow-y: auto; padding-top: 0;">
               <div class="compare-summary">
                 <span>Average across ${n} evaluation${n === 1 ? '' : 's'}</span>
-                <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(group.alpha, n)}</span>
+                <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(group.alpha, n)}${iccPill(group.icc, n)}</span>
               </div>
               <div style="padding: 14px 0 6px;">
                 <div class="shared-dotplot-label">Spread of scores (bar = mean, shaded = ±1 SD)</div>
