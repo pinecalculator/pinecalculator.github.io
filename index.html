@@ -1591,6 +1591,48 @@
         return `<div class="sd-pill" title="${escapeHtml(has ? tip : 'Needs at least 2 values')}"><strong>SD ${has ? formatScore(sd) : '–'}</strong><small>spread</small></div>`;
       }
 
+      // Krippendorff's alpha (interval metric). Units = the features, raters = evaluators.
+      // Features marked not-applicable are treated as missing (not as 10), so they
+      // don't inflate agreement. Needs >= 2 evaluators and some variation in ratings.
+      function krippendorffAlpha(units) {
+        let n = 0, sumAll = 0, sqAll = 0, doNum = 0;
+        units.forEach((vals) => {
+          const m = vals.length;
+          if (m < 2) return;
+          const sum = vals.reduce((a, v) => a + v, 0);
+          const sq = vals.reduce((a, v) => a + v * v, 0);
+          n += m; sumAll += sum; sqAll += sq;
+          doNum += (2 * (m * sq - sum * sum)) / (m - 1);
+        });
+        if (n < 2) return null;
+        const deNum = (2 * (n * sqAll - sumAll * sumAll)) / (n * (n - 1));
+        if (!(deNum > 0)) return null;
+        return Math.round((1 - (doNum / n) / deNum) * 100) / 100;
+      }
+
+      function groupAlpha(evaluations) {
+        if (!evaluations || evaluations.length < 2) return null;
+        const units = Object.keys(featureDefinitions).map((id) => {
+          const vals = [];
+          evaluations.forEach((e) => {
+            if (e.featureApplicability && e.featureApplicability[id] === false) return;
+            const raw = e.featureScores ? e.featureScores[id] : undefined;
+            const num = Number(raw);
+            vals.push((raw !== undefined && raw !== null && Number.isFinite(num)) ? num : featureDefinitions[id].initial);
+          });
+          return vals;
+        });
+        return krippendorffAlpha(units);
+      }
+
+      function alphaPill(alpha, n) {
+        const has = Number.isFinite(alpha);
+        const tip = has
+          ? "Krippendorff's alpha (interval) across " + n + ' evaluators and the features they rated. 0.80+ reliable, 0.67-0.80 tentative, below 0.67 low; N/A features excluded.'
+          : 'Needs at least 2 evaluators with varied ratings';
+        return `<div class="sd-pill" title="${escapeHtml(tip)}"><strong>α ${has ? alpha.toFixed(2) : '–'}</strong><small>agreement</small></div>`;
+      }
+
       // One entry per app: every evaluator's score, the latest record, and the average.
       function groupSharedByApp() {
         const groups = new Map();
@@ -1612,7 +1654,8 @@
               evaluations,
               latest: evaluations[0],
               average: Math.round(average * 10) / 10,
-              sd: stdDev(evaluations.map((e) => e.score))
+              sd: stdDev(evaluations.map((e) => e.score)),
+              alpha: groupAlpha(evaluations)
             };
           })
           .sort((a, b) => (b.latest.timestamp || 0) - (a.latest.timestamp || 0));
@@ -1840,7 +1883,7 @@
                   <strong>${n > 1 ? 'Avg ' : ''}${formatScore(g.average)}</strong>
                   <small>${SCORE_LABELS[band]}</small>
                 </div>
-                ${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}
+                ${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}
               </div>
             </div>
             <div class="shared-bar" aria-hidden="true"><span style="width:${clampPct(g.average)}%"></span></div>
@@ -1860,7 +1903,7 @@
           <button type="button" class="chart-app-row" data-app-key="${escapeHtml(g.key)}" data-count="${n}" data-single-user="${n === 1 ? escapeHtml(g.latest.userName || '') : ''}">
             <div class="chart-app-name"><span class="app-emoji" aria-hidden="true">${getAppEmoji(g.appName)}</span>${escapeHtml(g.appName)}<small>${n} evaluation${n === 1 ? '' : 's'}</small></div>
             ${renderDotPlot(g)}
-            <div class="score-pills"><div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}</div>
+            <div class="score-pills"><div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}</div>
           </button>`;
       }
 
@@ -1884,6 +1927,7 @@
             <span><i class="key-dot"></i>One user's score</span>
             <span><i class="key-mean"></i>Mean score for the app</span>
             <span><i class="key-sd"></i>Mean ± 1 SD</span>
+            <span><b>α</b> Krippendorff's alpha: evaluator agreement (0.80+ reliable)</span>
           </div>
           <div class="cat-summary-chart" aria-label="Mean score by category">${summary}</div>
           ${sections}`;
@@ -2086,7 +2130,7 @@
             <div class="modal-body" style="max-height: 420px; overflow-y: auto; padding-top: 0;">
               <div class="compare-summary">
                 <span>Average across ${n} evaluation${n === 1 ? '' : 's'}</span>
-                <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}</span>
+                <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(group.alpha, n)}</span>
               </div>
               <div style="padding: 14px 0 6px;">
                 <div class="shared-dotplot-label">Spread of scores (bar = mean, shaded = ±1 SD)</div>
