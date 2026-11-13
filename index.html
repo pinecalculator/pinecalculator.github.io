@@ -715,7 +715,7 @@
       .score-pill[data-band="moderate"] { background: var(--score-moderate); color: #10213a; }
       .score-pill[data-band="low"] { background: var(--score-low); color: #ffffff; }
 
-      .score-pills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; align-items: flex-start; flex-shrink: 0; max-width: 100%; }
+      .score-pills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; align-items: flex-start; flex: 0 1 auto; min-width: 0; max-width: 100%; }
       .sd-pill {
         display: inline-flex; flex-direction: column; align-items: center;
         min-width: 64px; padding: 6px 12px; border-radius: 14px; line-height: 1.2;
@@ -748,10 +748,14 @@
 
       .shared-card-head {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 12px;
+        gap: 10px 12px;
       }
+      .shared-card-head > div:first-child { flex: 1 1 220px; min-width: 0; }
+      /* When the pills no longer fit beside the title they wrap onto their own line, left-aligned. */
+      .shared-card-head .score-pills { justify-content: flex-start; }
 
       .shared-card-title { font-size: 15px; font-weight: 800; color: var(--navy); }
       .shared-card-sub { margin-top: 4px; font-size: 11px; color: var(--muted); }
@@ -820,9 +824,10 @@
 
       .compare-summary {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
+        gap: 10px 12px;
         padding: 14px 0;
         border-bottom: 2px solid var(--border);
         font-weight: 800;
@@ -924,7 +929,7 @@
 
       .chart-app-row {
         display: grid;
-        grid-template-columns: minmax(100px, 1fr) minmax(120px, 2.4fr) auto;
+        grid-template-columns: minmax(100px, 1fr) minmax(120px, 2.4fr);
         align-items: center;
         gap: 12px;
         width: 100%;
@@ -943,6 +948,9 @@
       .chart-app-name { font-weight: 800; font-size: 0.86rem; color: var(--navy); overflow: hidden; text-overflow: ellipsis; }
       .chart-app-name small { display: block; font-weight: 600; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
       .chart-app-row .score-pill { min-width: 56px; padding: 4px 10px; }
+      /* Chart rows carry up to 7 pills, so they always sit on their own line under the dot plot. */
+      .chart-app-row .score-pills { grid-column: 1 / -1; justify-content: flex-start; }
+      .compare-summary .score-pills { justify-content: flex-start; }
 
       .dotplot { position: relative; padding: 0 7px; }
 
@@ -998,8 +1006,7 @@
       .shared-dotplot-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
 
       @media (max-width: 560px) {
-        .chart-app-row { grid-template-columns: 1fr auto; }
-        .chart-app-row .dotplot { grid-column: 1 / -1; order: 3; }
+        .chart-app-row { grid-template-columns: 1fr; }
       }
 
       @media (max-width: 860px) {
