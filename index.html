@@ -1097,6 +1097,7 @@
           <button type="button" role="tab" id="tabBtnEvaluate" data-tab="evaluate" class="active" aria-selected="true" aria-controls="tabPanelEvaluate">Evaluate</button>
           <button type="button" role="tab" id="tabBtnExport" data-tab="export" aria-selected="false" aria-controls="tabPanelExport">Export data</button>
           <button type="button" role="tab" id="tabBtnWeakest" data-tab="weakest" aria-selected="false" aria-controls="tabPanelWeakest">Weakest features</button>
+          <button type="button" role="tab" id="tabBtnSensitivity" data-tab="sensitivity" aria-selected="false" aria-controls="tabPanelSensitivity">Sensitivity analysis</button>
         </div>
 
         <div id="tabPanelEvaluate" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnEvaluate">
@@ -1141,6 +1142,39 @@
             <button type="button" data-view="category" aria-pressed="false">🧩 Per category</button>
           </div>
           <div id="weakestList" class="weak-scroll" style="margin-top:12px;"></div>
+        </div>
+
+        <div id="tabPanelSensitivity" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnSensitivity" hidden>
+          <h3 style="margin:0 0 8px;color:var(--navy);">Sensitivity analysis: equal weights</h3>
+          <p style="margin:0 0 6px;color:var(--muted);font-size:0.9rem;line-height:1.5;">Same shared evaluations and the same feature ratings, but all 14 features contribute equally (<strong id="sensEqualWeight">7.14</strong>% each) instead of the PINE weights (13%, 8%, 3%, …). Scores, averages, SD, reliability and rankings below are recomputed from each saved rating; nothing is written to the database.</p>
+
+          <div class="portfolio-card">
+            <h3>Shared Evaluations (equal weights)</h3>
+            <div class="shared-legend" aria-label="Score color key">
+              <span style="--dot: var(--score-high);">Green: 80+</span>
+              <span style="--dot: var(--score-moderate);">Orange: 50-79</span>
+              <span style="--dot: var(--score-low);">Red: below 50</span>
+            </div>
+            <div class="view-toggle" id="sensViewToggle" role="group" aria-label="Sensitivity evaluations view">
+              <button type="button" data-view="cards" class="active" aria-pressed="true">🗂️ All apps</button>
+              <button type="button" data-view="category" aria-pressed="false">🧩 By category</button>
+              <button type="button" data-view="chart" aria-pressed="false">📊 Chart</button>
+            </div>
+            <div style="margin-top: 15px;">
+              <div id="sensEvaluationsList" class="history-list" role="list"><div class="empty-state">Loading shared evaluations…</div></div>
+            </div>
+          </div>
+
+          <div class="portfolio-card" style="margin-top:18px;">
+            <h3>Weakest features (equal weights)</h3>
+            <p style="margin:0 0 6px;color:var(--muted);font-size:0.9rem;line-height:1.5;">The 3 lowest-rated features. Not-applicable features count as 10. Ties are no longer broken by weight, since all weights are equal; they keep feature order.</p>
+            <div class="view-toggle" id="sensWeakViewToggle" role="group" aria-label="Sensitivity weakest features view">
+              <button type="button" data-view="evaluation" aria-pressed="false">🧾 Per evaluation</button>
+              <button type="button" data-view="app" class="active" aria-pressed="true">📱 Per app</button>
+              <button type="button" data-view="category" aria-pressed="false">🧩 Per category</button>
+            </div>
+            <div id="sensWeakestList" class="weak-scroll" style="margin-top:12px;"></div>
+          </div>
         </div>
 
         <div id="tabPanelExport" class="tab-panel export-panel" role="tabpanel" aria-labelledby="tabBtnExport" hidden>
@@ -1458,6 +1492,12 @@
         breachNotificationTimeWindow: 2
       };
 
+      // Sensitivity analysis: every feature gets the same share (100 / 14 = 7.142857...%).
+      const EQUAL_WEIGHTS = (() => {
+        const ids = Object.keys(featureDefinitions);
+        return Object.fromEntries(ids.map((id) => [id, 100 / ids.length]));
+      })();
+
       const featureModalSelections = {
         pushNotificationsScreens: {
           lockScreen: false,
@@ -1573,12 +1613,14 @@
 
       // Score for one cloud record. Falls back to recomputing from the saved
       // feature scores if an older record has no weightedScore.
-      function getEvaluationScore(e) {
+      function getEvaluationScore(e, w = weights) {
         // Prefer recomputing from the saved ratings so records shared under the old
         // weighting use the same formula as new ones.
         if (e.featureScores && typeof e.featureScores === 'object') {
-          return computeScoreFor(e.featureScores, e.featureApplicability);
+          return computeScoreFor(e.featureScores, e.featureApplicability, w);
         }
+        // A stored weightedScore only reflects the PINE weights, so it can't be used for other weightings.
+        if (w !== weights) return null;
         const direct = Number(e.weightedScore);
         if (e.weightedScore !== undefined && e.weightedScore !== null && Number.isFinite(direct)) return direct;
         return null;
@@ -1782,11 +1824,11 @@
       }
 
       // One entry per app: every evaluator's score, the latest record, and the average.
-      function groupSharedByApp() {
+      function groupSharedByApp(w = weights) {
         const groups = new Map();
         sharedEvaluations.forEach((e) => {
           const key = normalizeKey(e.appName);
-          const score = getEvaluationScore(e);
+          const score = getEvaluationScore(e, w);
           if (!key || score === null) return;
           if (!groups.has(key)) groups.set(key, []);
           groups.get(key).push({ ...e, score });
@@ -1849,6 +1891,8 @@
         document.getElementById('tabPanelEvaluate').hidden = tab !== 'evaluate';
         document.getElementById('tabPanelWeakest').hidden = tab !== 'weakest';
         document.getElementById('tabPanelExport').hidden = tab !== 'export';
+        document.getElementById('tabPanelSensitivity').hidden = tab !== 'sensitivity';
+        if (tab === 'sensitivity') renderSensitivity();
         if (tab === 'export') refreshExportSummary();
         if (tab === 'weakest') renderWeakestFeatures();
       }
@@ -2088,6 +2132,8 @@
 
       // ---- Weakest features tab ----------------------------------------------
       let weakView = 'app'; // 'evaluation' | 'app' | 'category'
+      let sensWeakView = 'app';
+      let sensView = 'cards';
 
       function setWeakView(view) {
         weakView = view;
@@ -2114,17 +2160,17 @@
       }
 
       // Lowest n features; ties go to the higher-weighted feature.
-      function getWorstFeatures(scoreFn, n = 3) {
+      function getWorstFeatures(scoreFn, n = 3, w = weights) {
         return Object.keys(featureDefinitions)
           .map((id) => ({ id, score: scoreFn(id) }))
-          .sort((a, b) => a.score - b.score || (weights[b.id] || 0) - (weights[a.id] || 0))
+          .sort((a, b) => a.score - b.score || (w[b.id] || 0) - (w[a.id] || 0))
           .slice(0, n);
       }
 
-      function weakListHtml(worst) {
+      function weakListHtml(worst, w = weights) {
         return `<ul class="weak-list">${worst.map((f) => `
           <li class="weak-row">
-            <span class="weak-name">${escapeHtml(featureDefinitions[f.id].label)}<small>Weight ${weights[f.id] || 0}%</small></span>
+            <span class="weak-name">${escapeHtml(featureDefinitions[f.id].label)}<small>Weight ${formatScore(Math.round((w[f.id] || 0) * 100) / 100)}%</small></span>
             <span class="weak-score" data-level="${getScoreLevel(f.score)}">${formatScore(f.score)}</span>
           </li>`).join('')}</ul>`;
       }
@@ -2144,15 +2190,19 @@
       }
 
       function renderWeakestFeatures() {
-        const container = document.getElementById('weakestList');
+        renderWeakestInto('weakestList', weakView, weights);
+      }
+
+      function renderWeakestInto(containerId, view, w) {
+        const container = document.getElementById(containerId);
         if (!container) return;
-        const groups = groupSharedByApp();
+        const groups = groupSharedByApp(w);
         if (!groups.length) {
           container.innerHTML = '<div class="empty-state">No shared evaluations yet</div>';
           return;
         }
 
-        if (weakView === 'evaluation') {
+        if (view === 'evaluation') {
           // One card per evaluator's evaluation of an app.
           const rows = [];
           groups.forEach((g) => g.evaluations.forEach((e) => rows.push({ g, e })));
@@ -2163,9 +2213,9 @@
             sub: `Evaluated by <strong>${escapeHtml(e.userName || 'Unknown')}</strong>${e.timestamp ? ' · ' + new Date(e.timestamp).toLocaleDateString() : ''}`,
             pillLabel: '',
             pillScore: e.score,
-            body: weakListHtml(getWorstFeatures((id) => effectiveFeatureScoreFor(e, id)))
+            body: weakListHtml(getWorstFeatures((id) => effectiveFeatureScoreFor(e, id), 3, w), w)
           })).join('');
-        } else if (weakView === 'app') {
+        } else if (view === 'app') {
           // Mean across evaluators, weakest apps first.
           container.innerHTML = [...groups].sort((a, b) => a.average - b.average).map((g) => {
             const n = g.evaluations.length;
@@ -2175,7 +2225,7 @@
               sub: `${n} evaluation${n === 1 ? '' : 's'}${n > 1 ? ' · feature scores are averages' : ''}`,
               pillLabel: n > 1 ? 'Avg ' : '',
               pillScore: g.average,
-              body: weakListHtml(getWorstFeatures((id) => appFeatureScore(g, id)))
+              body: weakListHtml(getWorstFeatures((id) => appFeatureScore(g, id), 3, w), w)
             });
           }).join('');
         } else {
@@ -2184,7 +2234,7 @@
             const catScore = (id) => round1(c.apps.reduce((s, a) => s + appFeatureScore(a, id), 0) / c.apps.length);
             const perApp = c.apps.map((a) => `
               <div class="weak-app">
-                <div class="weak-app-title">${escapeHtml(a.appName)}<small>weakest: ${getWorstFeatures((id) => appFeatureScore(a, id), 1).map((f) => escapeHtml(featureDefinitions[f.id].label) + ' (' + formatScore(f.score) + ')').join('')}</small></div>
+                <div class="weak-app-title">${escapeHtml(a.appName)}<small>weakest: ${getWorstFeatures((id) => appFeatureScore(a, id), 1, w).map((f) => escapeHtml(featureDefinitions[f.id].label) + ' (' + formatScore(f.score) + ')').join('')}</small></div>
               </div>`).join('');
             return weakCardHtml({
               emoji: c.cat.emoji,
@@ -2192,7 +2242,7 @@
               sub: `${c.apps.length} app${c.apps.length === 1 ? '' : 's'} · ${c.evalCount} evaluation${c.evalCount === 1 ? '' : 's'} · feature scores are means of app averages`,
               pillLabel: 'Mean ',
               pillScore: c.mean,
-              body: weakListHtml(getWorstFeatures(catScore)) + perApp
+              body: weakListHtml(getWorstFeatures(catScore, 3, w), w) + perApp
             });
           }).join('');
         }
@@ -2200,18 +2250,51 @@
 
       function renderSharedEvaluations() {
         renderWeakestFeatures();
-        const container = document.getElementById('sharedEvaluationsList');
+        renderSharedInto('sharedEvaluationsList', sharedView, weights);
+        renderSensitivity();
+      }
+
+      // Sensitivity analysis tab: the same views, scored with equal weights.
+      function renderSensitivity() {
+        const w = document.getElementById('sensEqualWeight');
+        if (w) w.textContent = (100 / Object.keys(featureDefinitions).length).toFixed(2);
+        renderSharedInto('sensEvaluationsList', sensView, EQUAL_WEIGHTS);
+        renderWeakestInto('sensWeakestList', sensWeakView, EQUAL_WEIGHTS);
+      }
+
+      function setSensView(view) {
+        sensView = view;
+        document.querySelectorAll('#sensViewToggle button').forEach((btn) => {
+          const on = btn.dataset.view === view;
+          btn.classList.toggle('active', on);
+          btn.setAttribute('aria-pressed', String(on));
+        });
+        renderSensitivity();
+      }
+
+      function setSensWeakView(view) {
+        sensWeakView = view;
+        document.querySelectorAll('#sensWeakViewToggle button').forEach((btn) => {
+          const on = btn.dataset.view === view;
+          btn.classList.toggle('active', on);
+          btn.setAttribute('aria-pressed', String(on));
+        });
+        renderSensitivity();
+      }
+
+      function renderSharedInto(containerId, view, w) {
+        const container = document.getElementById(containerId);
         if (!container) return;
 
-        const groups = groupSharedByApp();
+        const groups = groupSharedByApp(w);
         if (!groups.length) {
-          setSharedListMessage('No shared evaluations yet');
+          container.innerHTML = '<div class="empty-state">No shared evaluations yet</div>';
           return;
         }
 
-        if (sharedView === 'chart') {
+        if (view === 'chart') {
           container.innerHTML = renderChartView(groups);
-        } else if (sharedView === 'category') {
+        } else if (view === 'category') {
           container.innerHTML = groupByCategory(groups).map((c) => `
             <div class="cat-section">
               ${renderCategoryHead(c)}
@@ -2223,7 +2306,7 @@
       }
 
       // One delegated handler instead of re-binding listeners on every render.
-      function handleSharedListClick(event) {
+      function handleSharedListClick(event, w = weights) {
         const chip = event.target.closest('.shared-evaluator-badge');
         if (chip) {
           loadSharedEvaluation(chip.dataset.appKey, chip.dataset.userName);
@@ -2231,13 +2314,13 @@
         }
         const link = event.target.closest('.shared-view-all-link');
         if (link) {
-          showSharedAppComparison(link.dataset.appKey);
+          showSharedAppComparison(link.dataset.appKey, w);
           return;
         }
         const card = event.target.closest('.shared-card, .chart-app-row');
         if (!card) return;
         if (Number(card.dataset.count) > 1) {
-          showSharedAppComparison(card.dataset.appKey);
+          showSharedAppComparison(card.dataset.appKey, w);
         } else {
           loadSharedEvaluation(card.dataset.appKey, card.dataset.singleUser);
         }
@@ -2248,8 +2331,8 @@
         if (existing) existing.remove();
       }
 
-      function showSharedAppComparison(appKey) {
-        const group = groupSharedByApp().find((g) => g.key === normalizeKey(appKey));
+      function showSharedAppComparison(appKey, w = weights) {
+        const group = groupSharedByApp(w).find((g) => g.key === normalizeKey(appKey));
         if (!group) {
           alert('No evaluations found for this app');
           return;
@@ -3143,7 +3226,7 @@
       }
 
       // Pure version so cloud records can be scored without touching UI state.
-      function computeScoreFor(scores, applicability) {
+      function computeScoreFor(scores, applicability, w = weights) {
         const ids = Object.keys(featureDefinitions);
         const effective = (id) => {
           if (applicability && applicability[id] === false) return 10;
@@ -3152,7 +3235,7 @@
           return (raw !== undefined && raw !== null && Number.isFinite(num)) ? num : featureDefinitions[id].initial;
         };
         // Each feature contributes weight% x (rating / 10); a full 10 everywhere = 100.
-        const total = ids.reduce((sum, id) => sum + ((weights[id] || 0) * effective(id)) / 10, 0);
+        const total = ids.reduce((sum, id) => sum + ((w[id] || 0) * effective(id)) / 10, 0);
         return Math.round(total);
       }
 
@@ -3426,6 +3509,21 @@
             if (btn) setSharedView(btn.dataset.view);
           });
         }
+
+        const sensList = document.getElementById('sensEvaluationsList');
+        if (sensList) sensList.addEventListener('click', (ev) => handleSharedListClick(ev, EQUAL_WEIGHTS));
+
+        const sensToggle = document.getElementById('sensViewToggle');
+        if (sensToggle) sensToggle.addEventListener('click', (ev) => {
+          const btn = ev.target.closest('button[data-view]');
+          if (btn) setSensView(btn.dataset.view);
+        });
+
+        const sensWeakToggle = document.getElementById('sensWeakViewToggle');
+        if (sensWeakToggle) sensWeakToggle.addEventListener('click', (ev) => {
+          const btn = ev.target.closest('button[data-view]');
+          if (btn) setSensWeakView(btn.dataset.view);
+        });
 
         const weakToggle = document.getElementById('weakViewToggle');
         if (weakToggle) weakToggle.addEventListener('click', (ev) => {
