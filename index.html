@@ -1717,6 +1717,68 @@
         return `<div class="sd-pill" title="${escapeHtml(tip)}"><strong>ICC ${has ? icc.toFixed(2) : '–'}</strong><small>reliability</small></div>`;
       }
 
+      // Rating of one feature by one evaluator, or null when they marked it not applicable.
+      function featureRatingOrNull(e, id) {
+        if (e.featureApplicability && e.featureApplicability[id] === false) return null;
+        const raw = e.featureScores ? e.featureScores[id] : undefined;
+        const num = Number(raw);
+        return (raw !== undefined && raw !== null && Number.isFinite(num)) ? num : featureDefinitions[id].initial;
+      }
+
+      // IRR: mean pairwise agreement. For every pair of evaluators, the share of features both
+      // rated as applicable whose ratings differ by at most IRR_TOLERANCE points (0-10 scale);
+      // averaged over all pairs. Returns 0-1, or null with fewer than 2 evaluators.
+      const IRR_TOLERANCE = 1;
+      function groupIrr(evaluations) {
+        if (!evaluations || evaluations.length < 2) return null;
+        const ids = Object.keys(featureDefinitions);
+        const pairScores = [];
+        for (let i = 0; i < evaluations.length; i++) {
+          for (let j = i + 1; j < evaluations.length; j++) {
+            let agree = 0, total = 0;
+            ids.forEach((id) => {
+              const a = featureRatingOrNull(evaluations[i], id);
+              const b = featureRatingOrNull(evaluations[j], id);
+              if (a === null || b === null) return;
+              total++;
+              if (Math.abs(a - b) <= IRR_TOLERANCE) agree++;
+            });
+            if (total) pairScores.push(agree / total);
+          }
+        }
+        return pairScores.length ? pairScores.reduce((s, v) => s + v, 0) / pairScores.length : null;
+      }
+
+      // CVI (Content Validity Index). The only relevance judgement evaluators make is whether a
+      // feature applies to the app (not-applicable = not relevant). I-CVI = share of evaluators who
+      // kept the feature applicable; S-CVI/Ave = mean of the 14 I-CVIs; S-CVI/UA = share of features
+      // every evaluator kept applicable. Needs 2+ evaluators.
+      function groupCvi(evaluations) {
+        if (!evaluations || evaluations.length < 2) return null;
+        const ids = Object.keys(featureDefinitions);
+        const icvis = ids.map((id) => evaluations.filter((e) => featureRatingOrNull(e, id) !== null).length / evaluations.length);
+        return {
+          ave: icvis.reduce((s, v) => s + v, 0) / ids.length,
+          ua: icvis.filter((v) => v === 1).length / ids.length
+        };
+      }
+
+      function irrPill(irr, n) {
+        const has = Number.isFinite(irr);
+        const tip = has
+          ? 'Inter-rater reliability: mean pairwise agreement across ' + n + ' evaluators, i.e. the share of features (rated applicable by both) scored within ' + IRR_TOLERANCE + ' point of each other. 80%+ is generally considered good.'
+          : 'Needs at least 2 evaluators with a feature rated applicable by both';
+        return `<div class="sd-pill" title="${escapeHtml(tip)}"><strong>IRR ${has ? Math.round(irr * 100) + '%' : '–'}</strong><small>inter-rater</small></div>`;
+      }
+
+      function cviPill(cvi, n) {
+        const has = cvi && Number.isFinite(cvi.ave);
+        const tip = has
+          ? 'Content validity index (S-CVI/Ave) = ' + cvi.ave.toFixed(2) + ': mean share of the ' + n + ' evaluators who judged each feature relevant (not marked N/A). S-CVI/UA (features all evaluators kept) = ' + cvi.ua.toFixed(2) + '. 0.90+ is the usual acceptance level.'
+          : 'Needs at least 2 evaluators';
+        return `<div class="sd-pill" title="${escapeHtml(tip)}"><strong>CVI ${has ? cvi.ave.toFixed(2) : '–'}</strong><small>relevance</small></div>`;
+      }
+
       // Pooled reliability across every app that has 2+ evaluations.
       // alpha: all app x feature units pooled (N/A excluded).
       // ICC(2,k): total scores on the largest apps x evaluators block that has no gaps.
@@ -1846,7 +1908,9 @@
               average: Math.round(average * 10) / 10,
               sd: stdDev(evaluations.map((e) => e.score)),
               alpha: groupAlpha(evaluations),
-              icc: groupIcc(evaluations)
+              icc: groupIcc(evaluations),
+              irr: groupIrr(evaluations),
+              cvi: groupCvi(evaluations)
             };
           })
           .sort((a, b) => (b.latest.timestamp || 0) - (a.latest.timestamp || 0));
@@ -2076,7 +2140,7 @@
                   <strong>${n > 1 ? 'Avg ' : ''}${formatScore(g.average)}</strong>
                   <small>${SCORE_LABELS[band]}</small>
                 </div>
-                ${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}${iccPill(g.icc, n)}
+                ${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}${iccPill(g.icc, n)}${irrPill(g.irr, n)}${cviPill(g.cvi, n)}
               </div>
             </div>
             <div class="shared-bar" aria-hidden="true"><span style="width:${clampPct(g.average)}%"></span></div>
@@ -2096,7 +2160,7 @@
           <button type="button" class="chart-app-row" data-app-key="${escapeHtml(g.key)}" data-count="${n}" data-single-user="${n === 1 ? escapeHtml(g.latest.userName || '') : ''}">
             <div class="chart-app-name"><span class="app-emoji" aria-hidden="true">${getAppEmoji(g.appName)}</span>${escapeHtml(g.appName)}<small>${n} evaluation${n === 1 ? '' : 's'}</small></div>
             ${renderDotPlot(g)}
-            <div class="score-pills"><div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}${iccPill(g.icc, n)}</div>
+            <div class="score-pills"><div class="score-pill" data-band="${band}" title="Mean of ${n} evaluation${n === 1 ? '' : 's'}"><strong>${formatScore(g.average)}</strong></div>${sdPill(g.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(g.alpha, n)}${iccPill(g.icc, n)}${irrPill(g.irr, n)}${cviPill(g.cvi, n)}</div>
           </button>`;
       }
 
@@ -2123,6 +2187,8 @@
             <span><i class="key-sd"></i>Mean ± 1 SD</span>
             <span><b>α</b> Krippendorff's alpha: evaluator agreement (0.80+ reliable)</span>
             <span><b>ICC</b> ICC(2,k): reliability of the average of evaluators (0.75+ good)</span>
+            <span><b>IRR</b> mean pairwise agreement within 1 point (80%+ good)</span>
+            <span><b>CVI</b> S-CVI/Ave: share of evaluators who kept each feature applicable (0.90+ good)</span>
           </div>
           <div class="cat-summary-chart" aria-label="Mean score by category">${summary}</div>
           ${sections}`;
@@ -2364,7 +2430,7 @@
             <div class="modal-body" style="max-height: 420px; overflow-y: auto; padding-top: 0;">
               <div class="compare-summary">
                 <span>Average across ${n} evaluation${n === 1 ? '' : 's'}</span>
-                <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(group.alpha, n)}${iccPill(group.icc, n)}</span>
+                <span class="score-pills"><span class="score-pill" data-band="${band}"><strong>${formatScore(group.average)}</strong><small>${SCORE_LABELS[band]}</small></span>${sdPill(group.sd, 'Standard deviation across ' + n + ' evaluations')}${alphaPill(group.alpha, n)}${iccPill(group.icc, n)}${irrPill(group.irr, n)}${cviPill(group.cvi, n)}</span>
               </div>
               <div style="padding: 14px 0 6px;">
                 <div class="shared-dotplot-label">Spread of scores (bar = mean, shaded = ±1 SD)</div>
