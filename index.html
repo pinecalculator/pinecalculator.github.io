@@ -1084,6 +1084,32 @@
       .weak-app-title { font-size: 12px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
       .weak-app-title small { font-weight: 600; color: var(--muted); margin-left: 6px; }
       .weak-scroll { max-height: 520px; overflow-y: auto; padding-right: 2px; }
+      /* ---- Evaluator type select + Admin tab ---- */
+      .start-form select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 1rem;
+        color: var(--ink);
+        background: #fff;
+      }
+      .admin-panel h3 { margin: 0 0 8px; color: var(--navy); }
+      .admin-panel > p { margin: 0 0 18px; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+      .admin-group { margin: 0 0 22px; }
+      .admin-group h4 { margin: 0 0 4px; color: var(--navy); font-size: 0.98rem; }
+      .admin-group > p { margin: 0 0 10px; color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
+      .admin-options { display: flex; flex-direction: column; gap: 8px; }
+      .admin-option { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer; background: #fff; }
+      .admin-option input { margin-top: 3px; }
+      .admin-option strong { display: block; color: var(--navy); font-size: 0.9rem; }
+      .admin-option span { color: var(--muted); font-size: 0.8rem; }
+      .admin-eval-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+      .admin-eval-row strong { color: var(--navy); font-size: 0.9rem; }
+      .admin-eval-row small { display: block; color: var(--muted); font-size: 0.74rem; }
+      .admin-eval-row select { border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--navy); padding: 8px 10px; font-weight: 700; font: inherit; }
+      .admin-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .admin-note { margin-top: 14px; font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
     </style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🌲</text></svg>">
   </head>
@@ -1105,12 +1131,18 @@
           <button type="button" role="tab" id="tabBtnExport" data-tab="export" aria-selected="false" aria-controls="tabPanelExport">Export data</button>
           <button type="button" role="tab" id="tabBtnWeakest" data-tab="weakest" aria-selected="false" aria-controls="tabPanelWeakest">Weakest features</button>
           <button type="button" role="tab" id="tabBtnSensitivity" data-tab="sensitivity" aria-selected="false" aria-controls="tabPanelSensitivity">Sensitivity analysis</button>
+          <button type="button" role="tab" id="tabBtnAdmin" data-tab="admin" aria-selected="false" aria-controls="tabPanelAdmin">Admin</button>
         </div>
 
         <div id="tabPanelEvaluate" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnEvaluate">
         <div class="start-form">
           <label for="userNameInput">Your name</label>
           <input id="userNameInput" type="text" placeholder="e.g. John Smith" />
+          <label for="evaluatorTypeInput">Evaluator type</label>
+          <select id="evaluatorTypeInput">
+            <option value="human">Human evaluator</option>
+            <option value="llm">LLM judge (enter the model name above)</option>
+          </select>
           <label for="appNameInput">App name to evaluate</label>
           <input id="appNameInput" type="text" placeholder="e.g. CarePulse App" />
           <button id="startEvaluationBtn" type="button" class="primary-btn large-btn">Start evaluation</button>
@@ -1214,6 +1246,34 @@
           <div class="export-howto">
             <strong>To import:</strong> Firebase console → Realtime Database → Data → ⋮ menu on the target location → Import JSON. Importing overwrites data at that location, so back up first if other data lives there.
           </div>
+        </div>
+
+        <div id="tabPanelAdmin" class="tab-panel admin-panel" role="tabpanel" aria-labelledby="tabBtnAdmin" hidden>
+          <h3>Admin</h3>
+          <p>Choose what the shared views display. Settings are saved in this browser only and do not change any stored evaluations.</p>
+
+          <div class="admin-group">
+            <h4>Statistic pills</h4>
+            <p>Applies to app cards, the chart view, comparison pop-ups, and the overall reliability cards (ICC and α).</p>
+            <div class="admin-options" id="adminPillOptions"></div>
+          </div>
+
+          <div class="admin-group">
+            <h4>Overall reliability sections</h4>
+            <p>Human evaluators and LLM judges are scored separately so their agreement is never mixed unless you show the combined card.</p>
+            <div class="admin-options" id="adminSectionOptions"></div>
+          </div>
+
+          <div class="admin-group">
+            <h4>Evaluator types</h4>
+            <p>New evaluations record their type when started. Use this list to tag existing evaluators, such as older LLM runs saved without a type. A choice here overrides the recorded type.</p>
+            <div class="admin-options" id="adminEvaluatorTypes"></div>
+          </div>
+
+          <div class="admin-actions">
+            <button type="button" class="secondary-btn" id="adminResetBtn">Reset pills and sections</button>
+          </div>
+          <div class="admin-note">Settings live in this browser's local storage. Other people opening this file keep their own settings.</div>
         </div>
       </div>
     </div>
@@ -1533,6 +1593,7 @@
       
       let currentAppName = '';
       let currentUserName = '';
+      let currentEvaluatorType = 'human';
       let firebaseInitialized = false;
       let database = null;
       let sharedEvaluations = [];
@@ -1640,7 +1701,73 @@
         return Math.round(Math.sqrt(values.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1)) * 10) / 10;
       }
 
+      // ---- Admin configuration (pill visibility, reliability sections, evaluator types) ----
+      const ADMIN_CONFIG_KEY = 'pine.adminConfig.v1';
+      const PILL_DEFS = [
+        { key: 'sd', label: 'SD', desc: 'Standard deviation of evaluator scores for an app' },
+        { key: 'alpha', label: 'α', desc: "Krippendorff's alpha: agreement across features" },
+        { key: 'icc', label: 'ICC', desc: 'ICC(2,k): reliability of the average of evaluators' },
+        { key: 'irr', label: 'IRR', desc: 'Mean pairwise agreement within 1 point' },
+        { key: 'cvi', label: 'CVI', desc: 'Share of evaluators who kept each feature applicable' }
+      ];
+      const SECTION_DEFS = [
+        { key: 'all', label: 'All evaluators (combined)', desc: 'Human evaluators and LLM judges pooled together' },
+        { key: 'human', label: 'Human evaluators', desc: 'Reliability among human evaluators only' },
+        { key: 'llm', label: 'LLM judges', desc: 'Reliability among LLM judges only' }
+      ];
+
+      function defaultAdminConfig() {
+        return {
+          pills: Object.fromEntries(PILL_DEFS.map((d) => [d.key, true])),
+          sections: Object.fromEntries(SECTION_DEFS.map((d) => [d.key, true])),
+          evaluatorTypes: {}
+        };
+      }
+
+      function loadAdminConfig() {
+        const base = defaultAdminConfig();
+        try {
+          const raw = localStorage.getItem(ADMIN_CONFIG_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return {
+            pills: { ...base.pills, ...(parsed.pills || {}) },
+            sections: { ...base.sections, ...(parsed.sections || {}) },
+            evaluatorTypes: { ...(parsed.evaluatorTypes || {}) }
+          };
+        } catch (error) {
+          console.warn('Could not read admin settings', error);
+          return base;
+        }
+      }
+
+      let adminConfig = loadAdminConfig();
+
+      function saveAdminConfig() {
+        try {
+          localStorage.setItem(ADMIN_CONFIG_KEY, JSON.stringify(adminConfig));
+        } catch (error) {
+          console.warn('Could not save admin settings', error);
+        }
+      }
+
+      function isPillEnabled(key) {
+        return adminConfig.pills[key] !== false;
+      }
+
+      // 'llm' or 'human'. The Admin tag wins over the type recorded with the evaluation;
+      // records saved before this field existed count as human.
+      function evaluatorTypeOf(e) {
+        const override = adminConfig.evaluatorTypes[normalizeKey(e && e.userName)];
+        const t = override || (e && e.evaluatorType);
+        return t === 'llm' ? 'llm' : 'human';
+      }
+
+      function evaluatorTypeLabel(type) {
+        return type === 'llm' ? 'LLM judge' : 'Human evaluator';
+      }
+
       function sdPill(sd, tip) {
+        if (!isPillEnabled('sd')) return '';
         const has = Number.isFinite(sd);
         return `<div class="sd-pill" title="${escapeHtml(has ? tip : 'Needs at least 2 values')}"><strong>SD ${has ? formatScore(sd) : '–'}</strong><small>spread</small></div>`;
       }
@@ -1717,6 +1844,7 @@
       }
 
       function iccPill(icc, n) {
+        if (!isPillEnabled('icc')) return '';
         const has = Number.isFinite(icc);
         const tip = has
           ? 'ICC(2,k): two-way random effects, absolute agreement, average of ' + n + ' evaluators, over features all evaluators rated as applicable. 0.90+ excellent, 0.75-0.90 good, 0.50-0.75 moderate, below 0.50 poor.'
@@ -1771,6 +1899,7 @@
       }
 
       function irrPill(irr, n) {
+        if (!isPillEnabled('irr')) return '';
         const has = Number.isFinite(irr);
         const tip = has
           ? 'Inter-rater reliability: mean pairwise agreement across ' + n + ' evaluators, i.e. the share of features (rated applicable by both) scored within ' + IRR_TOLERANCE + ' point of each other. 80%+ is generally considered good.'
@@ -1779,6 +1908,7 @@
       }
 
       function cviPill(cvi, n) {
+        if (!isPillEnabled('cvi')) return '';
         const has = cvi && Number.isFinite(cvi.ave);
         const tip = has
           ? 'Content validity index (S-CVI/Ave) = ' + cvi.ave.toFixed(2) + ': mean share of the ' + n + ' evaluators who judged each feature relevant (not marked N/A). S-CVI/UA (features all evaluators kept) = ' + cvi.ua.toFixed(2) + '. 0.90+ is the usual acceptance level.'
@@ -1863,28 +1993,62 @@
       function iccLabel(x) { return x >= 0.9 ? 'excellent' : x >= 0.75 ? 'good' : x >= 0.5 ? 'moderate' : 'poor'; }
       function alphaLabel(x) { return x >= 0.8 ? 'reliable' : x >= 0.667 ? 'tentative' : 'low'; }
 
-      function renderReliabilityCard(groups) {
+      // One overall-reliability card for the given groups. `kind` is 'all', 'human' or 'llm'.
+      function renderReliabilityCard(groups, title, kind) {
+        const showIcc = isPillEnabled('icc');
+        const showAlpha = isPillEnabled('alpha');
+        if (!showIcc && !showAlpha) return '';
+        const evaluators = new Set();
+        groups.forEach((g) => g.evaluations.forEach((e) => { const u = normalizeKey(e.userName); if (u) evaluators.add(u); }));
+        if (!evaluators.size) {
+          const who = kind === 'llm' ? 'LLM judge' : kind === 'human' ? 'human' : '';
+          return `<div class="reliability-card"><div class="reliability-title">${escapeHtml(title)}</div><div class="reliability-note">No ${who ? who + ' ' : ''}evaluations yet.${kind === 'llm' ? ' Choose "LLM judge" as the evaluator type when starting an evaluation, or tag an evaluator in the Admin tab.' : ''}</div></div>`;
+        }
         const r = overallReliability(groups);
         if (!Number.isFinite(r.icc) && !Number.isFinite(r.alpha)) {
-          return '<div class="reliability-card"><div class="reliability-title">Overall evaluator reliability</div><div class="reliability-note">Needs at least 2 evaluators scoring the same apps.</div></div>';
+          return `<div class="reliability-card"><div class="reliability-title">${escapeHtml(title)}</div><div class="reliability-note">${evaluators.size} evaluator${evaluators.size === 1 ? '' : 's'} so far. Needs at least 2 evaluators scoring the same apps.</div></div>`;
         }
         const pill = (label, val, word, tip, ci) => `<div class="sd-pill" title="${escapeHtml(tip)}"><strong>${label} ${Number.isFinite(val) ? val.toFixed(2) : '–'}</strong><small>${Number.isFinite(val) ? word : 'n/a'}</small>${ci ? `<small>95% CI ${ci[0].toFixed(2)} to ${ci[1].toFixed(2)}</small>` : ''}</div>`;
         const note = [
-          r.block ? `ICC(2,k) on total scores: ${r.block.apps} apps × ${r.block.k} evaluators who all rated them.` : '',
-          `α pooled across ${r.nUnits} app-feature ratings from ${r.nApps} apps (N/A excluded).`,
+          `${evaluators.size} evaluator${evaluators.size === 1 ? '' : 's'} across ${r.nApps} app${r.nApps === 1 ? '' : 's'} with 2+ evaluations.`,
+          (showIcc && r.block) ? `ICC(2,k) on total scores: ${r.block.apps} apps × ${r.block.k} evaluators who all rated them.` : '',
+          showAlpha ? `α pooled across ${r.nUnits} app-feature ratings (N/A excluded).` : '',
           (r.iccCI || r.alphaCI) ? '95% CIs: percentile bootstrap over apps (1,000 resamples); shown when 3+ apps are available.' : 'Add more apps (3+) to see bootstrap 95% CIs.'
         ].filter(Boolean).join(' ');
         return `<div class="reliability-card">
-          <div class="reliability-title">Overall evaluator reliability (all apps)</div>
+          <div class="reliability-title">${escapeHtml(title)}</div>
           <div class="reliability-stats">
-            ${pill('ICC(2,k)', r.icc, Number.isFinite(r.icc) ? iccLabel(r.icc) : '', 'Two-way random effects, absolute agreement, average of evaluators. 0.90+ excellent, 0.75-0.90 good, 0.50-0.75 moderate, below 0.50 poor.', r.iccCI)}
-            ${pill('α', r.alpha, Number.isFinite(r.alpha) ? alphaLabel(r.alpha) : '', "Krippendorff's alpha (interval). 0.80+ reliable, 0.67-0.80 tentative, below 0.67 low.", r.alphaCI)}
+            ${showIcc ? pill('ICC(2,k)', r.icc, Number.isFinite(r.icc) ? iccLabel(r.icc) : '', 'Two-way random effects, absolute agreement, average of evaluators. 0.90+ excellent, 0.75-0.90 good, 0.50-0.75 moderate, below 0.50 poor.', r.iccCI) : ''}
+            ${showAlpha ? pill('α', r.alpha, Number.isFinite(r.alpha) ? alphaLabel(r.alpha) : '', "Krippendorff's alpha (interval). 0.80+ reliable, 0.67-0.80 tentative, below 0.67 low.", r.alphaCI) : ''}
           </div>
           <div class="reliability-note">${escapeHtml(note)}</div>
         </div>`;
       }
 
+      // Same apps, keeping only evaluations from one evaluator type.
+      function groupsForEvaluatorType(groups, type) {
+        return groups
+          .map((g) => ({ ...g, evaluations: g.evaluations.filter((e) => evaluatorTypeOf(e) === type) }))
+          .filter((g) => g.evaluations.length);
+      }
+
+      // Combined, human-only and LLM-judge-only reliability, each shown or hidden from the Admin tab.
+      function renderReliabilitySections(groups) {
+        const cards = [];
+        if (adminConfig.sections.all !== false) {
+          cards.push(renderReliabilityCard(groups, 'Overall evaluator reliability: all evaluators (human and LLM judges)', 'all'));
+        }
+        if (adminConfig.sections.human !== false) {
+          cards.push(renderReliabilityCard(groupsForEvaluatorType(groups, 'human'), 'Overall evaluator reliability: human evaluators', 'human'));
+        }
+        if (adminConfig.sections.llm !== false) {
+          cards.push(renderReliabilityCard(groupsForEvaluatorType(groups, 'llm'), 'Overall evaluator reliability: LLM judges', 'llm'));
+        }
+        return cards.join('');
+      }
+
       function alphaPill(alpha, n) {
+        if (!isPillEnabled('alpha')) return '';
         const has = Number.isFinite(alpha);
         const tip = has
           ? "Krippendorff's alpha (interval) across " + n + ' evaluators and the features they rated. 0.80+ reliable, 0.67-0.80 tentative, below 0.67 low; N/A features excluded.'
@@ -1963,9 +2127,82 @@
         document.getElementById('tabPanelWeakest').hidden = tab !== 'weakest';
         document.getElementById('tabPanelExport').hidden = tab !== 'export';
         document.getElementById('tabPanelSensitivity').hidden = tab !== 'sensitivity';
+        document.getElementById('tabPanelAdmin').hidden = tab !== 'admin';
+        if (tab === 'admin') renderAdminPanel();
         if (tab === 'sensitivity') renderSensitivity();
         if (tab === 'export') refreshExportSummary();
         if (tab === 'weakest') renderWeakestFeatures();
+      }
+
+      // ---- Admin tab ----
+      function renderAdminPanel() {
+        const pillBox = document.getElementById('adminPillOptions');
+        const sectionBox = document.getElementById('adminSectionOptions');
+        const evalBox = document.getElementById('adminEvaluatorTypes');
+        if (!pillBox || !sectionBox || !evalBox) return;
+
+        pillBox.innerHTML = PILL_DEFS.map((d) => `
+          <label class="admin-option">
+            <input type="checkbox" data-admin-pill="${d.key}" ${isPillEnabled(d.key) ? 'checked' : ''} />
+            <div><strong>${escapeHtml(d.label)}</strong><span>${escapeHtml(d.desc)}</span></div>
+          </label>`).join('');
+
+        sectionBox.innerHTML = SECTION_DEFS.map((d) => `
+          <label class="admin-option">
+            <input type="checkbox" data-admin-section="${d.key}" ${adminConfig.sections[d.key] !== false ? 'checked' : ''} />
+            <div><strong>${escapeHtml(d.label)}</strong><span>${escapeHtml(d.desc)}</span></div>
+          </label>`).join('');
+
+        const people = new Map();
+        sharedEvaluations.forEach((e) => {
+          const key = normalizeKey(e.userName);
+          if (!key) return;
+          const entry = people.get(key) || { name: e.userName, count: 0, recorded: 'human' };
+          entry.count += 1;
+          if (e.evaluatorType === 'llm') entry.recorded = 'llm';
+          people.set(key, entry);
+        });
+        const rows = [...people.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
+        evalBox.innerHTML = rows.length ? rows.map(([key, p]) => {
+          const override = adminConfig.evaluatorTypes[key] || '';
+          return `
+          <div class="admin-eval-row">
+            <div>
+              <strong>${escapeHtml(p.name)}</strong>
+              <small>${p.count} evaluation${p.count === 1 ? '' : 's'} · recorded as ${evaluatorTypeLabel(p.recorded).toLowerCase()}</small>
+            </div>
+            <select data-admin-evaluator="${escapeHtml(key)}" aria-label="Evaluator type for ${escapeHtml(p.name)}">
+              <option value="" ${override === '' ? 'selected' : ''}>Use recorded type</option>
+              <option value="human" ${override === 'human' ? 'selected' : ''}>Human evaluator</option>
+              <option value="llm" ${override === 'llm' ? 'selected' : ''}>LLM judge</option>
+            </select>
+          </div>`;
+        }).join('') : '<div class="empty-state">No shared evaluations loaded yet</div>';
+      }
+
+      function handleAdminChange(ev) {
+        const t = ev.target;
+        if (t.dataset.adminPill) {
+          adminConfig.pills[t.dataset.adminPill] = t.checked;
+        } else if (t.dataset.adminSection) {
+          adminConfig.sections[t.dataset.adminSection] = t.checked;
+        } else if (t.dataset.adminEvaluator !== undefined) {
+          if (t.value) adminConfig.evaluatorTypes[t.dataset.adminEvaluator] = t.value;
+          else delete adminConfig.evaluatorTypes[t.dataset.adminEvaluator];
+        } else {
+          return;
+        }
+        saveAdminConfig();
+        renderSharedEvaluations();
+      }
+
+      function resetAdminDisplayConfig() {
+        const base = defaultAdminConfig();
+        adminConfig.pills = base.pills;
+        adminConfig.sections = base.sections;
+        saveAdminConfig();
+        renderSharedEvaluations();
+        renderAdminPanel();
       }
 
       function setExportStatus(text, kind) {
@@ -2131,8 +2368,8 @@
         const extra = n - visible.length;
 
         const chips = visible.map((e) => `
-          <button type="button" class="shared-evaluator-badge" data-band="${getScoreBand(e.score)}" data-app-key="${escapeHtml(g.key)}" data-user-name="${escapeHtml(e.userName || '')}">
-            ${escapeHtml(e.userName || 'Unknown')}<span>${formatScore(e.score)}</span>
+          <button type="button" class="shared-evaluator-badge" data-band="${getScoreBand(e.score)}" data-app-key="${escapeHtml(g.key)}" data-user-name="${escapeHtml(e.userName || '')}" title="${evaluatorTypeLabel(evaluatorTypeOf(e))}">
+            ${evaluatorTypeOf(e) === 'llm' ? '🤖 ' : ''}${escapeHtml(e.userName || 'Unknown')}<span>${formatScore(e.score)}</span>
           </button>`).join('') + (extra > 0 ? `<span class="shared-more">+${extra} more</span>` : '');
 
         return `
@@ -2187,15 +2424,15 @@
           </div>`).join('');
 
         return `
-          ${renderReliabilityCard(groups)}
+          ${renderReliabilitySections(groups)}
           <div class="chart-key" aria-label="Chart key">
             <span><i class="key-dot"></i>One user's score</span>
             <span><i class="key-mean"></i>Mean score for the app</span>
             <span><i class="key-sd"></i>Mean ± 1 SD</span>
-            <span><b>α</b> Krippendorff's alpha: evaluator agreement (0.80+ reliable)</span>
-            <span><b>ICC</b> ICC(2,k): reliability of the average of evaluators (0.75+ good)</span>
-            <span><b>IRR</b> mean pairwise agreement within 1 point (80%+ good)</span>
-            <span><b>CVI</b> S-CVI/Ave: share of evaluators who kept each feature applicable (0.90+ good)</span>
+            ${isPillEnabled('alpha') ? `<span><b>α</b> Krippendorff's alpha: evaluator agreement (0.80+ reliable)</span>` : ''}
+            ${isPillEnabled('icc') ? `<span><b>ICC</b> ICC(2,k): reliability of the average of evaluators (0.75+ good)</span>` : ''}
+            ${isPillEnabled('irr') ? `<span><b>IRR</b> mean pairwise agreement within 1 point (80%+ good)</span>` : ''}
+            ${isPillEnabled('cvi') ? `<span><b>CVI</b> S-CVI/Ave: share of evaluators who kept each feature applicable (0.90+ good)</span>` : ''}
           </div>
           <div class="cat-summary-chart" aria-label="Mean score by category">${summary}</div>
           ${sections}`;
@@ -2325,6 +2562,8 @@
         renderWeakestFeatures();
         renderSharedInto('sharedEvaluationsList', sharedView, weights);
         renderSensitivity();
+        const adminPanel = document.getElementById('tabPanelAdmin');
+        if (adminPanel && !adminPanel.hidden) renderAdminPanel();
       }
 
       // Sensitivity analysis tab: the same views, scored with equal weights.
@@ -2418,8 +2657,8 @@
         const rows = group.evaluations.map((e) => `
           <button type="button" class="compare-row" data-user-name="${escapeHtml(e.userName || '')}">
             <span>
-              <strong>${escapeHtml(e.userName || 'Unknown')}</strong><br />
-              <small style="color: var(--muted);">${e.timestamp ? new Date(e.timestamp).toLocaleDateString() : ''}</small>
+              <strong>${evaluatorTypeOf(e) === 'llm' ? '🤖 ' : ''}${escapeHtml(e.userName || 'Unknown')}</strong><br />
+              <small style="color: var(--muted);">${evaluatorTypeLabel(evaluatorTypeOf(e))}${e.timestamp ? ' · ' + new Date(e.timestamp).toLocaleDateString() : ''}</small>
             </span>
             <span class="score-pill" data-band="${getScoreBand(e.score)}"><strong>${formatScore(e.score)}</strong></span>
           </button>`).join('');
@@ -2476,6 +2715,9 @@
 
         currentAppName = evaluation.appName;
         currentUserName = evaluation.userName;
+        currentEvaluatorType = evaluation.evaluatorType === 'llm' ? 'llm' : 'human';
+        const sharedTypeSelect = document.getElementById('evaluatorTypeInput');
+        if (sharedTypeSelect) sharedTypeSelect.value = currentEvaluatorType;
         evaluationCompleted = false;
         featureScores = { ...defaultFeatureScores, ...(evaluation.featureScores || {}) };
         featureApplicability = { ...defaultFeatureApplicability, ...(evaluation.featureApplicability || {}) };
@@ -2547,6 +2789,7 @@
           featureScores: featureScores,
           featureApplicability: featureApplicability,
           weightedScore: evaluationScore,
+          evaluatorType: currentEvaluatorType,
           timestamp: Date.now()
         };
 
@@ -3368,6 +3611,7 @@
           userName: currentUserName,
           featureScores,
           featureApplicability,
+          evaluatorType: currentEvaluatorType,
           score: computeScore(),
           updatedAt: new Date().toISOString()
         };
@@ -3406,6 +3650,7 @@
       function loadAppEvaluation(appName, userName) {
         currentAppName = appName;
         currentUserName = userName || '';
+        currentEvaluatorType = 'human';
         evaluationCompleted = false;
         featureScores = { ...defaultFeatureScores };
         featureApplicability = { ...defaultFeatureApplicability };
@@ -3415,10 +3660,13 @@
             const parsed = JSON.parse(saved);
             featureScores = { ...defaultFeatureScores, ...(parsed.featureScores || {}) };
             featureApplicability = { ...defaultFeatureApplicability, ...(parsed.featureApplicability || {}) };
+            currentEvaluatorType = parsed.evaluatorType === 'llm' ? 'llm' : 'human';
           }
         } catch (error) {
           console.warn('Could not load saved evaluation', error);
         }
+        const loadTypeSelect = document.getElementById('evaluatorTypeInput');
+        if (loadTypeSelect) loadTypeSelect.value = currentEvaluatorType;
         document.getElementById('userNameInput').value = currentUserName;
         document.getElementById('appNameInput').value = appName;
         document.getElementById('currentAppNameTitle').textContent = appName;
@@ -3444,6 +3692,8 @@
         const sameAppUser = existing.find((e) => (e.appName || '').trim().toLowerCase() === appName.toLowerCase() && (e.userName || '').trim().toLowerCase() === userName.toLowerCase());
         currentAppName = sameApp ? sameApp.appName : appName;
         currentUserName = sameAppUser ? sameAppUser.userName : userName;
+        const startTypeSelect = document.getElementById('evaluatorTypeInput');
+        currentEvaluatorType = startTypeSelect && startTypeSelect.value === 'llm' ? 'llm' : 'human';
         evaluationCompleted = false;
         featureScores = { ...defaultFeatureScores };
         featureApplicability = { ...defaultFeatureApplicability };
@@ -3609,6 +3859,10 @@
           const btn = ev.target.closest('button[data-tab]');
           if (btn) setStartTab(btn.dataset.tab);
         });
+        const adminPanel = document.getElementById('tabPanelAdmin');
+        if (adminPanel) adminPanel.addEventListener('change', handleAdminChange);
+        const adminResetBtn = document.getElementById('adminResetBtn');
+        if (adminResetBtn) adminResetBtn.addEventListener('click', resetAdminDisplayConfig);
         const dlBtn = document.getElementById('downloadExportBtn');
         if (dlBtn) dlBtn.addEventListener('click', downloadEvaluationsExport);
         const refreshExportBtn = document.getElementById('refreshExportBtn');
